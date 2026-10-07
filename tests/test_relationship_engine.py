@@ -11,7 +11,7 @@ from backend.models.evidence import (
     EvidenceType,
     Reliability,
 )
-from tests.fixtures import flat_jpeg, noise_png, software_exif
+from tests.fixtures import flat_jpeg, noise_png, noise_jpeg, software_exif
 
 
 def _ev(id, etype, status, observation="obs", observation_type=None, reliability=Reliability.MEDIUM):
@@ -125,11 +125,11 @@ def test_relationship_ids_are_deterministic_and_refs_attached():
 
 def test_relationships_from_real_analyzer_output():
     """Analyzer -> normalizer -> relationship engine, no hand-built evidence."""
-    content = noise_png(exif=software_exif())
+    content = noise_jpeg(exif=software_exif())
     observations = analyze_metadata(content) + analyze_pixels(content) + analyze_provenance(content)
     evidence = normalize_observations(observations)
     rels = build_relationships(evidence)
-    assert _types(rels) == [EvidenceRelationshipType.CONSISTENT_WITH]
+    assert _types(rels) == [EvidenceRelationshipType.CONSISTENT_WITH, EvidenceRelationshipType.CONSISTENT_WITH]
 
     plain = flat_jpeg()
     evidence = normalize_observations(analyze_metadata(plain) + analyze_pixels(plain) + analyze_provenance(plain))

@@ -27,3 +27,9 @@ def noise_png(**kwargs) -> bytes:
     rng = random.Random(1234)
     img = Image.frombytes("RGB", (128, 128), bytes(rng.randrange(256) for _ in range(128 * 128 * 3)))
     return encode(img, "PNG", **kwargs)
+
+def noise_jpeg(**kwargs) -> bytes:
+    """Deterministic random-noise JPEG. ELA max diff is high."""
+    rng = random.Random(1234)
+    img = Image.frombytes("RGB", (128, 128), bytes(rng.randrange(256) for _ in range(128 * 128 * 3)))
+    return encode(img, "JPEG", **kwargs)

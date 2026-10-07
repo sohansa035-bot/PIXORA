@@ -13,7 +13,7 @@ from backend.models.decision import DecisionEligibilityState, FinalDecisionState
 from backend.models.evidence import EvidenceRelationshipType, EvidenceStatus, EvidenceType
 from backend.models.investigation import Investigation
 from backend.models.observation import RawObservation
-from tests.fixtures import flat_jpeg, noise_png, software_exif
+from tests.fixtures import flat_jpeg, noise_png, noise_jpeg, software_exif
 
 VERDICT_WORDS = re.compile(r"\b(fake|forged|forgery|authentic image|is real|genuine)\b", re.I)
 
@@ -43,19 +43,21 @@ def test_pipeline_stages_and_shape_for_insufficient_case():
 
 
 def test_pipeline_populates_relationship_graph_when_justified():
-    inv = _run(noise_png(exif=software_exif()))
-    assert [r.relationship_type for r in inv.relationships] == [EvidenceRelationshipType.CONSISTENT_WITH]
-    rel = inv.relationships[0]
+    inv = _run(noise_jpeg(exif=software_exif()))
+    assert all(r.relationship_type == EvidenceRelationshipType.CONSISTENT_WITH for r in inv.relationships)
+    # Find the software -> pixel anomaly relationship
     by_id = {e.id: e for e in inv.evidence}
+    rel = next(r for r in inv.relationships if by_id[r.source_evidence_id].evidence_type == EvidenceType.METADATA)
+    
     assert by_id[rel.source_evidence_id].evidence_type == EvidenceType.METADATA
     assert by_id[rel.target_evidence_id].evidence_type == EvidenceType.PIXEL
-    assert by_id[rel.source_evidence_id].relationships == [rel.id]
-    assert by_id[rel.target_evidence_id].relationships == [rel.id]
-    assert inv.assessment.relationship_basis == [rel.id]
+    assert rel.id in by_id[rel.source_evidence_id].relationships
+    assert rel.id in by_id[rel.target_evidence_id].relationships
+    assert rel.id in inv.assessment.relationship_basis
 
 
 def test_investigation_serializes_all_required_sections():
-    data = _run(noise_png()).model_dump(mode="json")
+    data = _run(noise_jpeg()).model_dump(mode="json")
     for key in ("evidence", "relationships", "assessment", "limitations"):
         assert key in data
     for key in ("final_decision", "eligibility", "sufficiency", "relationship_basis"):
@@ -78,7 +80,7 @@ def test_rule_metadata_present_is_not_authentic():
 
 
 def test_rule_ela_anomaly_is_hedged_signal_not_proof():
-    inv = _run(noise_png())
+    inv = _run(noise_jpeg())
     pixel = next(e for e in inv.evidence if e.evidence_type == EvidenceType.PIXEL and e.observation_type == "ELA_DIFFERENCE_ABOVE_THRESHOLD")
     assert pixel.status == EvidenceStatus.SUPPORTED  # not VERIFIED
     assert "may indicate" in pixel.inference
@@ -87,7 +89,7 @@ def test_rule_ela_anomaly_is_hedged_signal_not_proof():
 
 
 def test_rule_unavailable_provenance_is_not_conflict():
-    inv = _run(noise_png())  # pixel anomaly + provenance not checked
+    inv = _run(noise_jpeg())  # pixel anomaly + provenance not checked
     assert EvidenceRelationshipType.CONFLICTS not in [r.relationship_type for r in inv.relationships]
     assert inv.assessment.eligibility != DecisionEligibilityState.CONFLICTING
 
@@ -99,7 +101,7 @@ def test_rule_unknown_is_neither_real_nor_fake():
 
 
 def test_rule_observation_inference_conclusion_are_separate_fields():
-    inv = _run(noise_png())
+    inv = _run(noise_jpeg())
     for e in inv.evidence:
         assert e.observation and e.observation != e.inference
     # Conclusions exist only on the assessment, never on evidence.

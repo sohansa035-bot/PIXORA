@@ -15,17 +15,68 @@ ELA_LIMITATIONS = [
 ]
 
 
-def analyze_pixels(image_bytes: bytes) -> list[RawObservation]:
-    """Basic Error Level Analysis (ELA).
+def analyze_pixels(image_bytes: bytes, **kwargs) -> list[RawObservation]:
+    """Basic Error Level Analysis (ELA) and JPEG Quantization Analysis.
 
     Returns RawObservations only. The analyzer reports the measured maximum
-    error-level difference and whether it exceeded the threshold; it does not
+    error-level difference and quantization tables; it does not
     interpret what that means.
     """
+    observations = []
     try:
-        img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        img = Image.open(io.BytesIO(image_bytes))
+        
+        # JPEG Quantization Check
+        if img.format == 'JPEG' and hasattr(img, 'quantization'):
+            q_tables = img.quantization
+            if q_tables:
+                tables_info = {k: list(v) for k, v in q_tables.items()}
+                observations.append(RawObservation(
+                    source=SOURCE,
+                    evidence_type=EvidenceType.PIXEL,
+                    observation_type=ObservationType.JPEG_QUANTIZATION_OBSERVED,
+                    status=ObservationStatus.OBSERVED,
+                    observation=f"JPEG quantization tables extracted ({len(q_tables)} tables).",
+                    raw_details={"quantization_tables": tables_info},
+                    limitations=["Quantization tables indicate JPEG compression parameters but do not independently prove malicious manipulation."],
+                ))
+            else:
+                observations.append(RawObservation(
+                    source=SOURCE,
+                    evidence_type=EvidenceType.PIXEL,
+                    observation_type=ObservationType.JPEG_QUANTIZATION_NOT_APPLICABLE,
+                    status=ObservationStatus.ABSENT,
+                    observation="Image is JPEG but no quantization tables found.",
+                    raw_details={},
+                    limitations=[],
+                ))
+        else:
+            observations.append(RawObservation(
+                source=SOURCE,
+                evidence_type=EvidenceType.PIXEL,
+                observation_type=ObservationType.JPEG_QUANTIZATION_NOT_APPLICABLE,
+                status=ObservationStatus.ABSENT,
+                observation="Image is not JPEG or does not support quantization analysis.",
+                raw_details={"format": img.format},
+                limitations=[],
+            ))
 
         # Basic Error Level Analysis (ELA)
+        # ELA is JPEG-domain specific in this implementation.
+        if img.format != 'JPEG':
+            observations.append(RawObservation(
+                source=SOURCE,
+                evidence_type=EvidenceType.PIXEL,
+                observation_type=ObservationType.ELA_NOT_APPLICABLE,
+                status=ObservationStatus.ABSENT,
+                observation="ELA was not applied because the current ELA implementation is JPEG-specific.",
+                raw_details={"format": img.format},
+                limitations=[],
+            ))
+            return observations
+
+        img = img.convert("RGB")
+
         # Save at known quality and compare
         temp_io = io.BytesIO()
         img.save(temp_io, 'JPEG', quality=ELA_RESAVE_QUALITY)
@@ -43,7 +94,7 @@ def analyze_pixels(image_bytes: bytes) -> list[RawObservation]:
             observation_type = ObservationType.ELA_DIFFERENCE_BELOW_THRESHOLD
             observation = f"Uniform or low error-level differences detected (max diff: {max_diff})."
 
-        return [RawObservation(
+        observations.append(RawObservation(
             source=SOURCE,
             evidence_type=EvidenceType.PIXEL,
             observation_type=observation_type,
@@ -57,10 +108,12 @@ def analyze_pixels(image_bytes: bytes) -> list[RawObservation]:
                 "channel_extrema": [list(ex) for ex in extrema],
             },
             limitations=list(ELA_LIMITATIONS),
-        )]
+        ))
+        
+        return observations
 
     except Exception as e:
-        return [RawObservation(
+        observations.append(RawObservation(
             source=SOURCE,
             evidence_type=EvidenceType.PIXEL,
             observation_type=ObservationType.ANALYSIS_FAILED,
@@ -68,4 +121,5 @@ def analyze_pixels(image_bytes: bytes) -> list[RawObservation]:
             observation=f"Pixel analysis failed: {str(e)}",
             raw_details={"error": type(e).__name__},
             limitations=["Analysis exception."],
-        )]
+        ))
+        return observations

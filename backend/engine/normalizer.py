@@ -125,6 +125,14 @@ NORMALIZATION_RULES: Dict[ObservationType, NormalizationRule] = {
         inference="No significant anomalies found via ELA.",
         requires_numeric_value=True,
     ),
+    ObservationType.ELA_NOT_APPLICABLE: NormalizationRule(
+        allowed_types=frozenset({EvidenceType.PIXEL}),
+        allowed_statuses=frozenset({ObservationStatus.ABSENT}),
+        status=EvidenceStatus.UNAVAILABLE,
+        reliability=Reliability.UNKNOWN,
+        applicability="ELA requires JPEG domain.",
+        inference=None,
+    ),
     ObservationType.PROVENANCE_NOT_CHECKED: NormalizationRule(
         allowed_types=frozenset({EvidenceType.PROVENANCE}),
         allowed_statuses=frozenset({ObservationStatus.NOT_PERFORMED}),

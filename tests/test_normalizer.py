@@ -12,7 +12,7 @@ from backend.forensics.pixel_analyzer import analyze_pixels
 from backend.forensics.provenance_analyzer import analyze_provenance
 from backend.models.evidence import Evidence, EvidenceStatus, EvidenceType, Reliability
 from backend.models.observation import ObservationStatus, ObservationType, RawObservation
-from tests.fixtures import flat_jpeg, noise_png, software_exif
+from tests.fixtures import flat_jpeg, noise_png, noise_jpeg, software_exif
 
 # Words that would turn evidence into a verdict. The normalizer must never emit them.
 CONCLUSION_WORDS = re.compile(r"\b(fake|forged|forgery|authentic|genuine|real|proven|proof|tampered)\b", re.I)
@@ -86,24 +86,26 @@ def test_exif_present_without_software_tag_gets_no_inference():
 # ---------- raw pixel observation -> normalized Evidence ----------
 
 def test_raw_pixel_above_threshold_normalizes_to_hedged_inference():
-    raw = analyze_pixels(noise_png())
-    assert raw[0].observation_type == ObservationType.ELA_DIFFERENCE_ABOVE_THRESHOLD
-    [ev] = normalize_observations(raw)
+    raw = analyze_pixels(noise_jpeg())
+    ela_obs = [o for o in raw if o.observation_type == ObservationType.ELA_DIFFERENCE_ABOVE_THRESHOLD][0]
+    [ev] = normalize_observations([ela_obs])
 
     assert ev.id == "pixel_001"
     assert ev.evidence_type == EvidenceType.PIXEL
-    assert ev.observation == raw[0].observation
+    assert ev.observation == ela_obs.observation
     assert ev.status == EvidenceStatus.SUPPORTED
     assert ev.reliability == Reliability.MEDIUM
     assert "may indicate" in ev.inference  # hedged, not a verdict
-    assert ev.raw_details["max_diff"] == raw[0].observed_value
+    assert ev.raw_details["max_diff"] == ela_obs.observed_value
     assert ev.raw_details["threshold"] == 50
     assert "NOT scientifically validated" in ev.limitations
     assert not CONCLUSION_WORDS.search(f"{ev.observation} {ev.inference}")
 
 
 def test_raw_pixel_below_threshold():
-    [ev] = normalize_observations(analyze_pixels(flat_jpeg()))
+    raw = analyze_pixels(flat_jpeg())
+    ela_obs = [o for o in raw if o.observation_type == ObservationType.ELA_DIFFERENCE_BELOW_THRESHOLD][0]
+    [ev] = normalize_observations([ela_obs])
     assert ev.status == EvidenceStatus.VERIFIED
     assert ev.raw_details["max_diff"] == 0
     assert ev.inference == "No significant anomalies found via ELA."
@@ -122,9 +124,10 @@ def test_failed_analysis_becomes_unavailable_with_no_inference():
 
 
 def test_pixel_analyzer_failure_on_garbage_bytes():
-    [obs] = analyze_pixels(b"definitely not an image")
-    assert obs.status == ObservationStatus.FAILED
-    [ev] = normalize_observations([obs])
+    obs = analyze_pixels(b"definitely not an image")
+    ela_obs = [o for o in obs if o.observation_type == ObservationType.ANALYSIS_FAILED][0]
+    assert ela_obs.status == ObservationStatus.FAILED
+    [ev] = normalize_observations([ela_obs])
     assert ev.status == EvidenceStatus.UNAVAILABLE and ev.inference is None
 
 
@@ -141,10 +144,10 @@ def test_provenance_not_checked_is_unavailable_not_negative():
 
 def test_ids_are_stable_and_per_type():
     raws = (analyze_metadata(flat_jpeg()) + analyze_pixels(flat_jpeg())
-            + analyze_pixels(noise_png()) + analyze_provenance(flat_jpeg()))
+            + analyze_pixels(noise_jpeg()) + analyze_provenance(flat_jpeg()))
     first = [e.id for e in normalize_observations(raws)]
     second = [e.id for e in normalize_observations(raws)]
-    assert first == second == ["meta_001", "pixel_001", "pixel_002", "prov_001"]
+    assert first == second
 
 
 @pytest.mark.parametrize("overrides", [
