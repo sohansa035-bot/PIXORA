@@ -1,3 +1,4 @@
+# Python / Backend
 venv/
 __pycache__/
 *.pyc
@@ -5,3 +6,16 @@ __pycache__/
 .pytest_cache/
 uploads/
 *.log
+
+# Node / Frontend
+node_modules/
+.next/
+out/
+build/
+*.tsbuildinfo
+next-env.d.ts
+.DS_Store
+
+# Temporary & Test Artifacts
+scratch/
+*.png.tmp

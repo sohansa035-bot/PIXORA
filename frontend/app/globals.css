@@ -1,0 +1,146 @@
+@import "tailwindcss";
+
+:root {
+  --background: #F4F0E8;
+  --foreground: #111111;
+  --color-warm-paper: #F4F0E8;
+  --color-warm-paper-light: #FAF8F5;
+  --color-warm-paper-card: #FFFFFF;
+  --color-ink: #111111;
+  --color-warm-gray: #77736C;
+  --color-soft-taupe: #D6D0C5;
+  --color-soft-taupe-light: #E7E2D8;
+  --color-electric-blue: #3155FF;
+  --color-acid-green: #B7E43A;
+  --color-evidence-orange: #FF8A3D;
+  --color-conflict-red: #F04444;
+}
+
+@theme {
+  --font-serif: "Instrument Serif", Georgia, serif;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-paper: #F4F0E8;
+  --color-paper-light: #FAF8F5;
+  --color-paper-card: #FFFFFF;
+  --color-ink: #111111;
+  --color-warmgray: #77736C;
+  --color-taupe: #D6D0C5;
+  --color-taupe-light: #E7E2D8;
+  --color-blue: #3155FF;
+  --color-acidgreen: #B7E43A;
+  --color-orange: #FF8A3D;
+  --color-red: #F04444;
+}
+
+body {
+  background-color: #F4F0E8;
+  color: #111111;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: #3155FF;
+  color: #FFFFFF;
+}
+
+.font-editorial {
+  font-family: "Instrument Serif", Georgia, serif;
+}
+
+.font-tech {
+  font-family: "JetBrains Mono", monospace;
+}
+
+/* Warm editorial grid */
+.editorial-grid {
+  background-size: 40px 40px;
+  background-image: 
+    linear-gradient(to right, rgba(119, 115, 108, 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(119, 115, 108, 0.08) 1px, transparent 1px);
+}
+
+.editorial-dot-grid {
+  background-size: 24px 24px;
+  background-image: radial-gradient(rgba(119, 115, 108, 0.18) 1px, transparent 1px);
+}
+
+/* Electric blue scanning beam */
+@keyframes blue-scanline {
+  0% {
+    top: 0%;
+    opacity: 0.9;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    top: 100%;
+    opacity: 0.9;
+  }
+}
+
+.animate-scanline-blue {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, #3155FF 25%, #ffffff 50%, #3155FF 75%, transparent 100%);
+  box-shadow: 0 0 10px #3155FF, 0 0 20px rgba(49, 85, 255, 0.4);
+  animation: blue-scanline 3s linear infinite;
+}
+
+/* Editorial paper card */
+.editorial-card {
+  background: #FFFFFF;
+  border: 1px solid #D6D0C5;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.editorial-card:hover {
+  border-color: #3155FF;
+  box-shadow: 0 8px 24px -8px rgba(49, 85, 255, 0.12);
+}
+
+/* Custom scrollbars in warm paper palette */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F4F0E8;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D6D0C5;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #77736C;
+}
+
+/* Print styles for official dossier */
+@media print {
+  body {
+    background: #FFFFFF !important;
+    color: #111111 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .editorial-card {
+    background: #FFFFFF !important;
+    border: 1px solid #000000 !important;
+    color: #111111 !important;
+    box-shadow: none !important;
+  }
+}

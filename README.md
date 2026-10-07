@@ -44,6 +44,84 @@ Explainable Report
 
 ---
 
+## 🏛️ Monorepo Architecture
+
+PIXORA is organized as a monorepo containing:
+- **`backend/`**: Python FastAPI forensic engine powered by Pillow, ExifRead, and custom analytical pipelines (pixel ELA variance, quantization matrix analysis, metadata heuristics, provenance audit, and a formal decision engine).
+- **`frontend/`**: Next.js 16 (React 19, TypeScript, Tailwind CSS) forensic workstation UI with real-time analysis streaming, evidence relationship graphs, and traceable forensic boundaries.
+- **`tests/`**: Automated test suite (77/77 tests passing) enforcing decision rules, abstention thresholds, and API contract integrity.
+- **`docs/`**: Architecture diagrams, forensic boundaries, and verification reports.
+
+```
+PIXORA/
+├── backend/                  # FastAPI Application & Decision Engine
+│   ├── api/                  # Ingestion endpoints (POST /api/investigate)
+│   ├── engine/               # Normalization, relationship, and decision logic
+│   ├── forensics/            # Pixel ELA, EXIF metadata, and provenance analyzers
+│   ├── models/               # Pydantic schemas (Investigation, Evidence, etc.)
+│   ├── requirements.txt      # Python dependencies
+│   └── main.py               # Application entrypoint
+├── frontend/                 # Next.js 16 Forensic Workstation
+│   ├── app/                  # App router (workstation page, styles, layout)
+│   ├── components/pixora/    # Forensic image viewer, evidence panel, assessment
+│   ├── lib/api/              # Live FastAPI client & forensic adapters
+│   ├── types/                # Forensic domain TypeScript interfaces
+│   └── public/               # Static assets & test vectors
+├── tests/                    # Backend unit & integration test suite
+└── docs/                     # Architectural & specification documents
+```
+
+---
+
+## 🚀 Getting Started
+
+### 1. Backend Setup & Run (FastAPI)
+
+```bash
+# 1. Navigate to backend
+cd backend
+
+# 2. Create and activate a virtual environment
+python -m venv venv
+# On Windows:
+venv\Scripts\activate
+# On Linux/macOS:
+source venv/bin/activate
+
+# 3. Install dependencies
+pip install -r requirements.txt
+
+# 4. Start the FastAPI server (runs on http://localhost:8000)
+uvicorn backend.main:app --reload --port 8000
+
+# 5. Run test suite
+pytest
+```
+
+The backend API will be live at `http://localhost:8000`.  
+Interactive Swagger docs: `http://localhost:8000/docs`.
+
+### 2. Frontend Setup & Run (Next.js)
+
+```bash
+# 1. Navigate to frontend
+cd frontend
+
+# 2. Install dependencies
+npm install
+
+# 3. Start development server (runs on http://localhost:3000)
+npm run dev
+
+# 4. Build for production
+npm run build
+npm run start
+```
+
+The frontend workstation connects directly to `http://localhost:8000/api/investigate` via `NEXT_PUBLIC_API_URL`.
+
+---
+
 ## 🎯 The Problem
 
 An image may be legitimately edited, maliciously manipulated, partially manipulated, AI-generated/edited, repeatedly processed, stripped of metadata, accompanied by misleading context, supported by conflicting evidence, or impossible to determine conclusively.
@@ -84,7 +162,7 @@ Forensic Assessment
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ Investigative Data Flow
 
 ```text
                     IMAGE + QUESTION
@@ -281,6 +359,24 @@ Possible outcomes:
 
 ---
 
+## 🛡️ Core Forensic Principles
+
+1. **Evidence-Aware Non-Binary Decisions**:
+   - `SUPPORTED_MANIPULATION`: Multiple independent, corroborating evidence signals with zero unresolvable conflicts.
+   - `INSUFFICIENT_EVIDENCE`: Isolated anomalies lacking corroboration (e.g. uncorroborated ELA variance or stripped EXIF).
+   - `CONFLICTING_EVIDENCE`: Contradictory evidence signals requiring manual forensic review.
+   - `ABSTAIN`: Analysis blocked due to format limitations (e.g. ELA on lossless PNG) or insufficient data.
+2. **Epistemological Traceability**:
+   - `OBSERVATION`: Raw measurable data (e.g. `ELA_MAX_DIFF = 62.4`, `SOFTWARE_TAG = Adobe Photoshop`).
+   - `INFERENCE`: Contextual interpretation (e.g. compression artifact vs editing artifact).
+   - `CONCLUSION`: Corroborated verdict strictly bounded by what can and cannot be proven.
+3. **Zero Silent Simulation**:
+   - If the forensic backend is offline or an ingestion error occurs, the workstation halts and explicitly displays `FORENSIC BACKEND UNAVAILABLE` rather than fabricating simulated evidence.
+4. **Honest Spatial Evidence**:
+   - Global frame metrics are clearly labeled as `GLOBAL FRAME MEASUREMENT` without fabricating artificial spatial bounding boxes.
+
+---
+
 ## 🆚 PIXORA vs Conventional Detection
 
 | Conventional                  | PIXORA                    |
@@ -295,109 +391,6 @@ Possible outcomes:
 | Always concludes              | Can abstain               |
 | Score → Decision              | Eligibility → Decision    |
 | Detection-focused             | Investigation-focused     |
-
----
-
-## 🧪 Evaluation
-
-PIXORA should be evaluated on:
-
-* Detection & localization
-* Evidence consistency
-* Conflict handling
-* Missing-evidence identification
-* Evidence sufficiency
-* Decision eligibility
-* Abstention quality
-* Explainability
-* Generalization
-* Controlled evidence-state experiments
-
----
-
-## 🧱 Technology Direction
-
-```text
-FORENSIC LAYER
-Pixel • Metadata • Provenance • AI • History • Context
-                         ↓
-INTELLIGENCE LAYER
-Normalization • Quality • Applicability • Relationships
-Completeness • Conflict • Sufficiency • Eligibility
-                         ↓
-PRESENTATION LAYER
-Dashboard • Evidence Visualization • Assessment • Reports
-```
-
----
-
-## 🛣️ Roadmap
-
-**Phase 1 — Foundation**
-
-* [ ] Image ingestion
-* [ ] File hashing
-* [ ] Metadata extraction
-* [ ] Evidence schema
-* [ ] Investigation lifecycle
-
-**Phase 2 — Forensics**
-
-* [ ] Pixel analysis
-* [ ] Manipulation localization
-* [ ] Metadata/file analysis
-* [ ] Provenance
-* [ ] Evidence normalization
-
-**Phase 3 — Intelligence**
-
-* [ ] Quality & applicability
-* [ ] Evidence graph
-* [ ] Conflict detection
-* [ ] Completeness
-* [ ] Uncertainty
-
-**Phase 4 — Decision**
-
-* [ ] Sufficiency engine
-* [ ] Decision Eligibility Gate
-* [ ] Conclude / Abstain
-* [ ] Explainable assessment
-
-**Phase 5 — Investigation UX**
-
-* [ ] Dashboard
-* [ ] Evidence timeline
-* [ ] Manipulation heatmap
-* [ ] Evidence visualization
-* [ ] Report generation
-
-**Phase 6 — Validation**
-
-* [ ] Benchmark dataset
-* [ ] Detector comparison
-* [ ] Conflict/missing-evidence scenarios
-* [ ] Abstention evaluation
-
----
-
-## 🔬 Existing Technology vs PIXORA
-
-| Capability                           | Position                        |
-| ------------------------------------ | ------------------------------- |
-| Manipulation detection/localization  | Existing technology             |
-| Metadata analysis                    | Existing technology             |
-| C2PA                                 | Existing standard               |
-| AI detection                         | Existing research               |
-| Manipulation history                 | Existing research               |
-| Evidence fusion/graphs               | Existing research               |
-| Uncertainty/conflict handling        | Existing research               |
-| **Evidence-to-Decision Framework**   | **Proposed contribution**       |
-| **Decision Eligibility Gate**        | **Proposed mechanism**          |
-| **Evidence Sufficiency Evaluation**  | **Proposed research direction** |
-| **Controlled justification testing** | **Potential contribution**      |
-
-> Novelty is a research claim to validate, not an assumption.
 
 ---
 
