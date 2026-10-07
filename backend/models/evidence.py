@@ -1,5 +1,5 @@
-from pydantic import BaseModel
-from typing import Optional, List
+from pydantic import BaseModel, Field
+from typing import Optional, List, Dict, Any
 from enum import Enum
 
 class EvidenceType(str, Enum):
@@ -37,6 +37,9 @@ class Evidence(BaseModel):
     limitations: str
     relationships: List[str] = []
     provenance: Optional[str] = None
+    # Set by the normalizer. Optional so hand-built Evidence stays valid.
+    observation_type: Optional[str] = None
+    raw_details: Dict[str, Any] = Field(default_factory=dict)
 
 class EvidenceRelationshipType(str, Enum):
     SUPPORTS = "SUPPORTS"

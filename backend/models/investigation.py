@@ -12,3 +12,5 @@ class Investigation(BaseModel):
     evidence: List[Evidence] = []
     relationships: List[EvidenceRelationship] = []
     assessment: Optional[DecisionAssessment] = None
+    # Aggregated, per-evidence limitations ("[evidence_id] limitation text").
+    limitations: List[str] = []

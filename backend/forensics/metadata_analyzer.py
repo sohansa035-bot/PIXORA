@@ -1,55 +1,63 @@
 import io
-import uuid
 import exifread
-from backend.models.evidence import Evidence, EvidenceType, EvidenceStatus, Reliability
+from backend.models.evidence import EvidenceType
+from backend.models.observation import RawObservation, ObservationType, ObservationStatus
 
-def analyze_metadata(image_bytes: bytes) -> list[Evidence]:
-    evidence_list = []
-    tags = exifread.process_file(io.BytesIO(image_bytes), details=False)
-    
+SOURCE = "exifread_analyzer"
+
+
+def analyze_metadata(image_bytes: bytes) -> list[RawObservation]:
+    """Read EXIF tags and report what was (or was not) found.
+
+    Returns RawObservations only. No inference, reliability, or applicability is
+    assigned here -- that is the normalizer's job.
+    """
+    try:
+        tags = exifread.process_file(io.BytesIO(image_bytes), details=False)
+    except Exception as e:
+        return [RawObservation(
+            source=SOURCE,
+            evidence_type=EvidenceType.METADATA,
+            observation_type=ObservationType.ANALYSIS_FAILED,
+            status=ObservationStatus.FAILED,
+            observation=f"Metadata analysis failed: {str(e)}",
+            raw_details={"error": type(e).__name__},
+            limitations=["Analysis exception. Metadata state is unknown."],
+        )]
+
     if not tags:
         # Missing metadata
-        ev = Evidence(
-            id=f"meta_{uuid.uuid4().hex[:8]}",
-            source="exifread_analyzer",
+        return [RawObservation(
+            source=SOURCE,
             evidence_type=EvidenceType.METADATA,
+            observation_type=ObservationType.EXIF_ABSENT,
+            status=ObservationStatus.ABSENT,
             observation="No EXIF metadata found in the image file.",
-            inference="Image may have been stripped of metadata (common in social media or editing).",
-            reliability=Reliability.HIGH,
-            applicability="Contextual. Missing metadata does not imply manipulation of pixel content.",
-            status=EvidenceStatus.VERIFIED,
-            limitations="Cannot determine if metadata was never present or removed."
-        )
-        evidence_list.append(ev)
-        return evidence_list
+            raw_details={"exif_tag_count": 0},
+            limitations=["Cannot determine if metadata was never present or removed."],
+        )]
 
     # Look for software/editing signatures
     software_tag = tags.get('Image Software')
     if software_tag:
         software_val = str(software_tag)
-        ev = Evidence(
-            id=f"meta_{uuid.uuid4().hex[:8]}",
-            source="exifread_analyzer",
+        return [RawObservation(
+            source=SOURCE,
             evidence_type=EvidenceType.METADATA,
+            observation_type=ObservationType.EXIF_SOFTWARE_TAG_PRESENT,
+            status=ObservationStatus.OBSERVED,
             observation=f"Software tag found: {software_val}",
-            inference="Image was processed or saved using the specified software.",
-            reliability=Reliability.HIGH,
-            applicability="Indicates software interaction, but not necessarily malicious manipulation.",
-            status=EvidenceStatus.VERIFIED,
-            limitations="Metadata is easily spoofed or altered."
-        )
-        evidence_list.append(ev)
-    else:
-        ev = Evidence(
-            id=f"meta_{uuid.uuid4().hex[:8]}",
-            source="exifread_analyzer",
-            evidence_type=EvidenceType.METADATA,
-            observation="EXIF data present, but no Software tag found.",
-            reliability=Reliability.MEDIUM,
-            applicability="Contextual.",
-            status=EvidenceStatus.VERIFIED,
-            limitations="Metadata can be modified."
-        )
-        evidence_list.append(ev)
+            observed_value=software_val,
+            raw_details={"exif_tag_count": len(tags), "tag": "Image Software"},
+            limitations=["Metadata is easily spoofed or altered."],
+        )]
 
-    return evidence_list
+    return [RawObservation(
+        source=SOURCE,
+        evidence_type=EvidenceType.METADATA,
+        observation_type=ObservationType.EXIF_PRESENT_NO_SOFTWARE_TAG,
+        status=ObservationStatus.OBSERVED,
+        observation="EXIF data present, but no Software tag found.",
+        raw_details={"exif_tag_count": len(tags)},
+        limitations=["Metadata can be modified."],
+    )]

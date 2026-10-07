@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List
 from enum import Enum
 
@@ -18,6 +18,11 @@ class FinalDecisionState(str, Enum):
     UNKNOWN = "UNKNOWN"
     MANUAL_REVIEW_REQUIRED = "MANUAL_REVIEW_REQUIRED"
 
+class SufficiencyState(str, Enum):
+    SUFFICIENT = "SUFFICIENT"
+    INSUFFICIENT = "INSUFFICIENT"
+    NOT_EVALUATED = "NOT_EVALUATED"
+
 class DecisionAssessment(BaseModel):
     eligibility: DecisionEligibilityState
     final_decision: FinalDecisionState
@@ -25,3 +30,7 @@ class DecisionAssessment(BaseModel):
     what_cannot_be_established: List[str]
     missing_evidence: List[str]
     explanation: str
+    # Explicit sufficiency state (previously only implicit in the decision branch taken).
+    sufficiency: SufficiencyState = SufficiencyState.NOT_EVALUATED
+    # IDs of EvidenceRelationship objects the decision relied on.
+    relationship_basis: List[str] = Field(default_factory=list)
