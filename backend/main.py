@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from backend.api.ingest import router as ingest_router
 
 app = FastAPI(title="IMAGE-TRACE", description="Evidence-Aware Digital Image Forensic Investigation System")
 
@@ -11,6 +12,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(ingest_router)
 
 class HealthResponse(BaseModel):
     status: str
