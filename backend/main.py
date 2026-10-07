@@ -1,5 +1,6 @@
+import json
 from typing import Dict
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from backend.api.ingest import router as ingest_router
@@ -28,15 +29,19 @@ class HealthResponse(BaseModel):
 
 @app.get("/", response_model=RootResponse)
 def root_status():
-    return RootResponse(
-        service="PIXORA",
-        status="operational",
-        message="Digital image forensics API is running.",
-        endpoints={
+    payload = {
+        "service": "PIXORA",
+        "status": "operational",
+        "message": "Digital image forensics API is running.",
+        "endpoints": {
             "health": "/api/health",
             "investigate": "/api/investigate",
             "docs": "/docs",
         },
+    }
+    return Response(
+        content=json.dumps(payload, indent=2),
+        media_type="application/json",
     )
 
 @app.get("/api/health", response_model=HealthResponse)
