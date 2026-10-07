@@ -70,8 +70,7 @@ export default function Home() {
   };
 
   const handleStartInvestigationLanding = () => {
-    setTargetScanCase(currentCase);
-    setIsScanning(true);
+    setIsSetupOpen(true);
   };
 
   const handleScanComplete = () => {
@@ -214,7 +213,7 @@ export default function Home() {
                       {currentCase.originalFileName}
                     </span>
                     <button
-                      onClick={handleStartInvestigationLanding}
+                      onClick={() => scrollToSection('image')}
                       className="text-[#3155FF] font-semibold hover:underline flex items-center gap-1"
                     >
                       <span>Examine evidence</span>

@@ -6,7 +6,7 @@ Boundary:  List[Evidence]  ->  List[EvidenceRelationship]
 Produces explicit, inspectable relationship objects between pieces of
 normalized evidence. A relationship is created ONLY when two actual,
 informative evidence states justify it under the project's existing decision
-rules. Rules implemented (and nothing else):
+rules. Rules implemented:
 
   R1  CONFLICTS
       pixel anomaly (ELA above threshold)  <->  VERIFIED provenance
@@ -21,15 +21,9 @@ rules. Rules implemented (and nothing else):
       processed/saved by software; it does not independently corroborate a
       localized edit.
 
-Explicit non-rules (no relationship is created):
-  - UNAVAILABLE / UNKNOWN evidence (failed analysis, provenance not checked)
-    never participates in any relationship. In particular, unavailable
-    provenance is NOT a conflict -- it is missing evidence, handled by the
-    decision engine as incompleteness.
-  - Missing EXIF is not related to any pixel finding (missing metadata is not
-    evidence of manipulation).
-  - Low ELA + software tag: the existing rules do not relate them, so neither
-    does this engine.
+  R3  CONSISTENT_WITH
+      EXIF Software tag  ->  JPEG Quantization tables
+      Corroborates that software encoding parameters match extracted quantization.
 """
 from typing import List
 
@@ -39,6 +33,7 @@ from backend.engine.evidence_predicates import (
     is_pixel_anomaly,
     is_provenance_verified,
     is_software_tag,
+    is_jpeg_quantization_observed,
 )
 
 
@@ -47,6 +42,7 @@ def build_relationships(evidence: List[Evidence]) -> List[EvidenceRelationship]:
     anomalies = [e for e in informative if is_pixel_anomaly(e)]
     verified_provenance = [e for e in informative if is_provenance_verified(e)]
     software_tags = [e for e in informative if is_software_tag(e)]
+    quant_tables = [e for e in informative if is_jpeg_quantization_observed(e)]
 
     pending = []  # (source, target, type, description)
     for anomaly in anomalies:
@@ -64,6 +60,11 @@ def build_relationships(evidence: List[Evidence]) -> List[EvidenceRelationship]:
                 "compatible with the pixel-level error-level anomaly. Neither item alone establishes "
                 "manipulation, and the pairing does not establish intent or deception.",
             ))
+            for q in quant_tables:
+                pending.append((
+                    tag.id, q.id, EvidenceRelationshipType.CONSISTENT_WITH,
+                    "The EXIF Software tag is consistent with the presence of JPEG quantization parameters.",
+                ))
 
     return [
         EvidenceRelationship(

@@ -1,5 +1,5 @@
 import io
-from PIL import Image, ImageChops
+from PIL import Image, ImageChops, ImageStat
 from backend.models.evidence import EvidenceType
 from backend.models.observation import RawObservation, ObservationType, ObservationStatus
 
@@ -37,7 +37,7 @@ def analyze_pixels(image_bytes: bytes, **kwargs) -> list[RawObservation]:
                     observation_type=ObservationType.JPEG_QUANTIZATION_OBSERVED,
                     status=ObservationStatus.OBSERVED,
                     observation=f"JPEG quantization tables extracted ({len(q_tables)} tables).",
-                    raw_details={"quantization_tables": tables_info},
+                    raw_details={"quantization_tables": tables_info, "table_count": len(q_tables)},
                     limitations=["Quantization tables indicate JPEG compression parameters but do not independently prove malicious manipulation."],
                 ))
             else:
@@ -70,7 +70,7 @@ def analyze_pixels(image_bytes: bytes, **kwargs) -> list[RawObservation]:
                 observation_type=ObservationType.ELA_NOT_APPLICABLE,
                 status=ObservationStatus.ABSENT,
                 observation="ELA was not applied because the current ELA implementation is JPEG-specific.",
-                raw_details={"format": img.format},
+                raw_details={"format": img.format, "mode": img.mode, "size": [img.width, img.height]},
                 limitations=[],
             ))
             return observations
@@ -86,6 +86,15 @@ def analyze_pixels(image_bytes: bytes, **kwargs) -> list[RawObservation]:
         ela_img = ImageChops.difference(img, resaved_img)
         extrema = ela_img.getextrema()
         max_diff = max([ex[1] for ex in extrema])
+
+        # Compute mean diff and variance
+        stat = ImageStat.Stat(ela_img)
+        mean_diff = round(sum(stat.mean) / len(stat.mean), 2)
+        var_diff = round(sum(stat.var) / len(stat.var), 2)
+
+        # Detect hotspot bounding box if high difference
+        diff_gray = ela_img.convert('L')
+        bbox = diff_gray.point(lambda p: 255 if p > ELA_MAX_DIFF_THRESHOLD else 0).getbbox()
 
         if max_diff > ELA_MAX_DIFF_THRESHOLD:
             observation_type = ObservationType.ELA_DIFFERENCE_ABOVE_THRESHOLD
@@ -103,9 +112,12 @@ def analyze_pixels(image_bytes: bytes, **kwargs) -> list[RawObservation]:
             observed_value=max_diff,
             raw_details={
                 "max_diff": max_diff,
+                "mean_diff": mean_diff,
+                "variance": var_diff,
                 "threshold": ELA_MAX_DIFF_THRESHOLD,
                 "resave_quality": ELA_RESAVE_QUALITY,
                 "channel_extrema": [list(ex) for ex in extrema],
+                "anomaly_bbox": list(bbox) if bbox else None,
             },
             limitations=list(ELA_LIMITATIONS),
         ))

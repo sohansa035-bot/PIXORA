@@ -16,7 +16,7 @@ Order of evaluation (unchanged from the pre-refactor engine):
 """
 from typing import List, Optional
 
-from backend.models.evidence import Evidence, EvidenceRelationship, EvidenceRelationshipType
+from backend.models.evidence import Evidence, EvidenceRelationship, EvidenceRelationshipType, EvidenceType
 from backend.models.decision import (
     DecisionAssessment,
     DecisionEligibilityState,
@@ -24,6 +24,7 @@ from backend.models.decision import (
     SufficiencyState,
 )
 from backend.engine.evidence_predicates import (
+    is_informative,
     is_metadata_absent,
     is_metadata_available,
     is_pixel_anomaly,
@@ -70,8 +71,51 @@ def evaluate_evidence(
     elif has_structural_consistency:
         what_can.append("File structure and extension are consistent.")
         
-    if has_jpeg_quantization:
-        what_can.append("JPEG quantization tables observed.")
+    quant_ev = next((e for e in evidence_list if is_jpeg_quantization_observed(e)), None)
+    if quant_ev:
+        tbl_count = quant_ev.raw_details.get("table_count") if quant_ev.raw_details else None
+        if tbl_count:
+            what_can.append(f"JPEG quantization tables observed ({tbl_count} tables extracted).")
+        else:
+            what_can.append("JPEG quantization tables observed.")
+
+    # Dynamic pixel findings
+    pixel_ela_ev = next((e for e in evidence_list if e.evidence_type == EvidenceType.PIXEL and is_informative(e) and "ELA" in (e.observation_type or "")), None)
+    if pixel_ela_ev:
+        max_diff = pixel_ela_ev.raw_details.get("max_diff") if pixel_ela_ev.raw_details else None
+        mean_diff = pixel_ela_ev.raw_details.get("mean_diff") if pixel_ela_ev.raw_details else None
+        if has_pixel_anomaly:
+            detail_parts = []
+            if max_diff is not None:
+                detail_parts.append(f"max diff: {max_diff}")
+            if mean_diff is not None:
+                detail_parts.append(f"mean: {mean_diff}")
+            det_str = f" ({', '.join(detail_parts)})" if detail_parts else ""
+            what_can.append(f"Localized pixel-level anomalies detected{det_str} consistent with potential compression disruption.")
+        elif pixel_ela_ev.observation_type == ObservationType.ELA_DIFFERENCE_BELOW_THRESHOLD:
+            max_str = f" (max diff: {max_diff})" if max_diff is not None else ""
+            what_can.append(f"Uniform error-level distribution across compression grid{max_str}. No obvious pixel-level anomalies detected.")
+    elif pixel_assessed and not has_pixel_anomaly:
+        what_can.append("No obvious pixel-level anomalies detected.")
+
+    # Dynamic metadata findings
+    soft_ev = next((e for e in evidence_list if is_software_tag(e)), None)
+    if soft_ev:
+        sw_name = soft_ev.raw_details.get("software") or soft_ev.observed_value if soft_ev.raw_details else None
+        what_can.append(f"Software editing trace detected in metadata: {sw_name or 'identified software'}.")
+
+    meta_camera_ev = next((e for e in evidence_list if e.observation_type == ObservationType.EXIF_PRESENT_NO_SOFTWARE_TAG), None)
+    if meta_camera_ev:
+        c_make = meta_camera_ev.raw_details.get("camera_make") if meta_camera_ev.raw_details else None
+        c_model = meta_camera_ev.raw_details.get("camera_model") if meta_camera_ev.raw_details else None
+        tag_count = meta_camera_ev.raw_details.get("exif_tag_count") if meta_camera_ev.raw_details else None
+        if c_make or c_model:
+            what_can.append(f"Original capture device metadata identified: {f'{c_make} ' if c_make else ''}{c_model or ''} ({tag_count or ''} EXIF tags preserved).")
+        else:
+            what_can.append(f"EXIF metadata container preserved ({tag_count or ''} tags), with no editing software headers.")
+
+    if is_prov_valid:
+        what_can.append("Cryptographic provenance verified (C2PA signature valid).")
 
     if has_meta_missing:
         missing.append("Original EXIF Metadata")
@@ -112,9 +156,9 @@ def evaluate_evidence(
         return DecisionAssessment(
             eligibility=eligibility,
             final_decision=decision,
-            what_can_be_established=what_can,
-            what_cannot_be_established=what_cannot,
-            missing_evidence=missing,
+            what_can_be_established=list(what_can),
+            what_cannot_be_established=list(what_cannot),
+            missing_evidence=list(missing),
             explanation=explanation,
             sufficiency=sufficiency,
             relationship_basis=[r.id for r in basis],
@@ -142,8 +186,6 @@ def evaluate_evidence(
 
     # 4. Conclusion
     if has_pixel_anomaly:
-        what_can.append("Pixel-level anomalies detected consistent with localized editing.")
-        
         has_software_corroboration = any(is_software_tag(e) for e in evidence_list) and consistent
         
         if has_software_corroboration:
@@ -163,9 +205,6 @@ def evaluate_evidence(
                 FinalDecisionState.LIKELY_MANIPULATED,
                 "Pixel anomalies detected, but without corroborating metadata evidence, this cannot definitively prove manipulation. Likely manipulated.",
             )
-
-    if pixel_assessed:
-        what_can.append("No obvious pixel-level anomalies detected.")
 
     if has_meta_software:
         return _assessment(

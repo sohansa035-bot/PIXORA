@@ -130,12 +130,18 @@ export function transformInvestigationToForensicCase(
   const isElaNotApplicable = elaEv?.observation_type === 'ELA_NOT_APPLICABLE' || elaEv?.status === 'UNAVAILABLE';
   const isElaAnomaly = elaEv?.observation_type === 'ELA_DIFFERENCE_ABOVE_THRESHOLD';
   const elaMaxDiff = typeof elaEv?.raw_details?.max_diff === 'number' ? elaEv.raw_details.max_diff : 0;
+  const elaMeanDiff = typeof elaEv?.raw_details?.mean_diff === 'number' ? elaEv.raw_details.mean_diff : 0;
+  const anomalyBbox = elaEv?.raw_details?.anomaly_bbox;
 
   // Metadata Evidence
   const metaEvidences = inv.evidence.filter((e) => e.evidence_type === 'METADATA');
   const metaMain = metaEvidences[0];
-  const isExifAbsent = metaMain?.observation_type === 'EXIF_ABSENT';
+  const metaClean = metaEvidences.find((e) => e.observation_type === 'EXIF_PRESENT_NO_SOFTWARE_TAG');
+  const isExifAbsent = metaMain?.observation_type === 'EXIF_ABSENT' || metaEvidences.some((e) => e.observation_type === 'EXIF_ABSENT');
   const softwareTag = metaMain?.observation_type === 'EXIF_SOFTWARE_TAG_PRESENT' ? String(metaMain.observed_value || metaMain.raw_details?.tag || 'Detected Software') : '';
+  const cameraDevice = metaClean?.raw_details?.camera_make 
+    ? `${metaClean.raw_details.camera_make} ${metaClean.raw_details.camera_model || ''}`.trim()
+    : (metaClean?.raw_details?.camera_model || (isExifAbsent ? 'Not Available in Container' : 'Preserved'));
 
   // Provenance Evidence
   const provEvidences = inv.evidence.filter((e) => e.evidence_type === 'PROVENANCE');
@@ -206,6 +212,16 @@ export function transformInvestigationToForensicCase(
     { key: 'SEC:SHA256', label: 'SHA-256 Digest', value: inv.image_hash, status: 'VERIFIED' },
   ];
 
+  if (metaClean?.raw_details?.camera_make || metaClean?.raw_details?.camera_model) {
+    metadataRecords.push({
+      key: 'EXIF:Camera',
+      label: 'Capture Device',
+      value: cameraDevice,
+      status: 'VERIFIED',
+      note: 'Camera hardware information identified in original EXIF container.',
+    });
+  }
+
   if (isExifAbsent) {
     metadataRecords.push({
       key: 'EXIF:State',
@@ -239,6 +255,32 @@ export function transformInvestigationToForensicCase(
   const availableCount = completenessItems.filter((i) => i.status === 'AVAILABLE').length;
   const completenessPct = completenessItems.length > 0 ? Math.round((availableCount / completenessItems.length) * 100) : 50;
 
+  // Real detected hotspot region if available from backend analysis
+  const detectedRegions = anomalyBbox && Array.isArray(anomalyBbox) && anomalyBbox.length === 4
+    ? [{
+        id: 'reg_01',
+        label: 'REGION 01',
+        x: anomalyBbox[0],
+        y: anomalyBbox[1],
+        width: Math.max(1, anomalyBbox[2] - anomalyBbox[0]),
+        height: Math.max(1, anomalyBbox[3] - anomalyBbox[1]),
+        confidence: isElaAnomaly ? 0.84 : 0.45,
+        anomalyType: 'compression_discontinuity',
+      }]
+    : [];
+
+  // Recommended next step strictly dependent on the calibrated decision state
+  let recommendedActionText = 'OBTAIN VERIFIABLE CAMERA ORIGINAL OR INDEPENDENT CAPTURE';
+  if (assessment.final_decision === 'NO_SIGNIFICANT_MANIPULATION_EVIDENCE') {
+    recommendedActionText = 'ACCEPT / ARCHIVE — NO EVIDENCE OF TAMPERING DETECTED';
+  } else if (assessment.final_decision === 'SUPPORTED_MANIPULATION') {
+    recommendedActionText = 'MANIPULATION SUPPORTED BY CORROBORATING SIGNALS';
+  } else if (assessment.final_decision === 'LIKELY_MANIPULATED') {
+    recommendedActionText = 'EXAMINER REVIEW — UNCORROBORATED ANOMALY DETECTED';
+  } else if (assessment.final_decision === 'CONFLICTING_EVIDENCE') {
+    recommendedActionText = 'MANUAL REVIEW REQUIRED — SIGNALS CONFLICT';
+  }
+
   return {
     id: caseId,
     caseId,
@@ -263,7 +305,7 @@ export function transformInvestigationToForensicCase(
       statusLabel: isElaNotApplicable 
         ? 'ERROR LEVEL ANALYSIS NOT APPLICABLE'
         : isElaAnomaly 
-        ? `HIGH ERROR-LEVEL DIFFERENCE DETECTED (MAX DIFF: ${elaMaxDiff})`
+        ? `HIGH ERROR-LEVEL DIFFERENCE DETECTED (MAX DIFF: ${elaMaxDiff}, MEAN: ${elaMeanDiff})`
         : `UNIFORM / LOW ERROR-LEVEL DIFFERENCES (MAX DIFF: ${elaMaxDiff})`,
       confidence: isElaAnomaly ? 0.75 : 0.5,
       technique: isElaNotApplicable ? 'COMPRESSION DOMAIN: NOT APPLICABLE (NON-JPEG)' : 'COMPRESSION DOMAIN: ERROR LEVEL ANALYSIS',
@@ -272,8 +314,7 @@ export function transformInvestigationToForensicCase(
       noiseConsistency: quantEv?.status === 'OBSERVED' ? 0.8 : 0.2,
       edgeGradientScore: 0.5,
       limitations: elaEv?.limitations || 'Global frame measurement — method does not localize spatial coordinates.',
-      // CRITICAL (RULE 8): Do NOT fabricate spatial bounding boxes!
-      regions: [],
+      regions: detectedRegions,
     },
 
     metadata: {
@@ -284,7 +325,7 @@ export function transformInvestigationToForensicCase(
       width: inv.analysis?.width || 0,
       height: inv.analysis?.height || 0,
       colorProfile: 'Standard (Embedded)',
-      cameraMakeModel: isExifAbsent ? 'Not Available in Container' : 'Preserved',
+      cameraMakeModel: cameraDevice,
       timestamp: inv.timestamp.slice(0, 10),
       jpegCharacteristics: quantEv?.observation || (isElaNotApplicable ? 'Non-JPEG format' : 'Baseline'),
       exifIntact: !isExifAbsent,
@@ -346,11 +387,7 @@ export function transformInvestigationToForensicCase(
       limitations: boundaries.limitations || [],
       eligibility: assessment.eligibility,
       sufficiency: assessment.sufficiency,
-      recommendedAction: assessment.eligibility === 'ABSTAIN' 
-        ? 'ABSTAIN — INSUFFICIENT EVIDENCE FOR DEFINITIVE FORENSIC CLAIM'
-        : assessment.final_decision === 'SUPPORTED_MANIPULATION'
-        ? 'MANIPULATION SUPPORTED BY CORROBORATING SIGNALS'
-        : 'EXAMINER REVIEW RECOMMENDED',
+      recommendedAction: recommendedActionText,
       chainOfCustodyVerified: false,
       investigatorNotes: `Analyzers executed: ${inv.analyzers.map((a) => `${a.name} (${a.status})`).join(', ')}.`,
     },

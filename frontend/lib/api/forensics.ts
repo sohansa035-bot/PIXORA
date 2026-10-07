@@ -123,6 +123,14 @@ export const ForensicsAPI = {
     const formData = new FormData();
     formData.append('file', uploadFile);
 
+    console.log('[PIXORA_FORENSIC_UPLOAD]', {
+      filename: uploadFile.name,
+      mimeType: uploadFile.type,
+      sizeBytes: uploadFile.size,
+      timestamp: new Date().toISOString(),
+      endpoint: `${apiUrl}/api/investigate`,
+    });
+
     const startTime = performance.now();
     try {
       const response = await fetch(`${apiUrl}/api/investigate`, {
@@ -138,6 +146,17 @@ export const ForensicsAPI = {
       const investigationData = await response.json();
       const durationMs = Math.round(performance.now() - startTime);
       const localUrl = options.file?.url || URL.createObjectURL(uploadFile);
+
+      console.log('[PIXORA_FORENSIC_RESPONSE]', {
+        id: investigationData.id,
+        imageHash: investigationData.image_hash,
+        decision: investigationData.assessment?.final_decision,
+        eligibility: investigationData.assessment?.eligibility,
+        sufficiency: investigationData.assessment?.sufficiency,
+        analyzersCount: investigationData.analyzers?.length,
+        evidenceCount: investigationData.evidence?.length,
+        relationshipsCount: investigationData.relationships?.length,
+      });
 
       const forensicCase = transformInvestigationToForensicCase(investigationData, uploadFile, localUrl, {
         investigationTarget: options.investigationTarget,

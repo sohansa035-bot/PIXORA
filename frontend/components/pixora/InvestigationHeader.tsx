@@ -37,23 +37,48 @@ export const InvestigationHeader: React.FC<InvestigationHeaderProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  React.useEffect(() => {
+    if (!isOpen) {
+      setCustomFile(null);
+      setSelectedPresetId('');
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleProcessFile = (file: File) => {
     if (!file.type.startsWith('image/')) return;
     const previewUrl = URL.createObjectURL(file);
+    
+    // Set customFile synchronously immediately
+    setSelectedPresetId('');
+    setCustomFile({
+      file,
+      previewUrl,
+      width: 1920,
+      height: 1080,
+    });
+
+    // Asynchronously resolve natural dimensions
     const img = new Image();
     img.src = previewUrl;
     img.onload = () => {
-      setCustomFile({
-        file,
-        previewUrl,
+      setCustomFile((prev) => prev ? {
+        ...prev,
         width: img.naturalWidth || 1920,
         height: img.naturalHeight || 1080,
-        sha256: '9e4a3b8117c093c8309df5021e5fbe41804b901a8df9e59837968db75429111c',
-      });
-      setSelectedPresetId('');
+      } : null);
     };
+
+    // Asynchronously calculate real SHA-256 hash
+    file.arrayBuffer().then((buffer) => {
+      crypto.subtle.digest('SHA-256', buffer).then((hashBuffer) => {
+        const hashHex = Array.from(new Uint8Array(hashBuffer))
+          .map((b) => b.toString(16).padStart(2, '0'))
+          .join('');
+        setCustomFile((prev) => prev ? { ...prev, sha256: hashHex } : null);
+      });
+    }).catch(() => {});
   };
 
   const handleSubmit = () => {
@@ -190,6 +215,18 @@ export const InvestigationHeader: React.FC<InvestigationHeaderProps> = ({
                       OR LOAD TEST EVIDENCE FILE:
                     </div>
                     <div className="flex flex-wrap items-center justify-center gap-2">
+                      <button
+                        type="button"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          const res = await fetch('/test_assets/test_camera_photo.jpg');
+                          const blob = await res.blob();
+                          handleProcessFile(new File([blob], 'test_camera_photo.jpg', { type: 'image/jpeg' }));
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-white border border-[#D6D0C5] hover:border-[#3155FF] hover:text-[#3155FF] text-[11px] font-mono text-[#111111] transition-colors"
+                      >
+                        test_camera_photo.jpg
+                      </button>
                       <button
                         type="button"
                         onClick={async (e) => {
