@@ -63,4 +63,9 @@ async def investigate_image(file: UploadFile = File(...)):
 
     investigation.evidence = evidence_list
     
+    # Stage 4: Decision Integrity
+    from backend.engine.decision_maker import evaluate_evidence
+    assessment = evaluate_evidence(evidence_list)
+    investigation.assessment = assessment
+    
     return investigation
