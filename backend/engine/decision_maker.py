@@ -73,7 +73,6 @@ def evaluate_evidence(
         missing.append("Pixel-level analysis result (ELA failed or was not run)")
         what_cannot.append("Assess pixel-level consistency of the image content.")
 
-    # Sufficiency (explicit). Unknown is never treated as clean.
     insufficiency_reasons = []
     if not pixel_assessed and not is_prov_valid:
         insufficiency_reasons.append(
@@ -84,6 +83,9 @@ def evaluate_evidence(
     elif not meta_available and not has_pixel_anomaly and not is_prov_valid:
         # Pre-existing rule: no metadata, no provenance, no pixel anomaly -> abstain rather than claim "real".
         insufficiency_reasons.append("Image lacks metadata, provenance, and significant pixel anomalies.")
+    elif has_pixel_anomaly and not meta_available and not is_prov_valid:
+        insufficiency_reasons.append("ELA anomaly detected, but metadata and provenance are unavailable. Available evidence may warrant further investigation, but does not independently establish manipulation.")
+    
     sufficiency = SufficiencyState.INSUFFICIENT if insufficiency_reasons else SufficiencyState.SUFFICIENT
 
     def _assessment(eligibility, decision, explanation, basis=()):
@@ -120,18 +122,24 @@ def evaluate_evidence(
 
     # 4. Conclusion
     if has_pixel_anomaly:
-        what_can.append("Pixel-level anomalies detected consistent with manipulation.")
+        what_can.append("Pixel-level anomalies detected consistent with localized editing.")
         if consistent:
             what_can.append(
                 "Metadata Software tag indicates the file was processed by software, "
                 "which is consistent with the pixel-level anomaly."
             )
-        return _assessment(
-            DecisionEligibilityState.CONCLUSION_MAY_BE_ISSUED,
-            FinalDecisionState.SUPPORTED_MANIPULATION,
-            "Evidence is sufficient and consistent. Pixel anomalies support a conclusion of digital manipulation.",
-            consistent,
-        )
+            return _assessment(
+                DecisionEligibilityState.CONCLUSION_MAY_BE_ISSUED,
+                FinalDecisionState.SUPPORTED_MANIPULATION,
+                "Evidence is sufficient and consistent. Pixel anomalies, corroborated by software traces, support a conclusion of digital manipulation.",
+                consistent,
+            )
+        else:
+            return _assessment(
+                DecisionEligibilityState.CONCLUSION_MAY_BE_ISSUED,
+                FinalDecisionState.LIKELY_MANIPULATED,
+                "Pixel anomalies detected, but without corroborating metadata evidence, this cannot definitively prove manipulation. Likely manipulated.",
+            )
 
     if pixel_assessed:
         what_can.append("No obvious pixel-level anomalies detected.")
