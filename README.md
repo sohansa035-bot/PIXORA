@@ -6,432 +6,381 @@
 
 [![Status](https://img.shields.io/badge/Status-Research%20%2B%20Development-0f172a?style=for-the-badge)](#)
 [![Domain](https://img.shields.io/badge/Domain-Digital%20Forensics-1e3a8a?style=for-the-badge)](#)
-[![AI/ML](https://img.shields.io/badge/AI%2FML-Forensic%20Analysis-312e81?style=for-the-badge)](#)
+[![Tests](https://img.shields.io/badge/Tests-84%2F84%20Passing-10b981?style=for-the-badge)](#)
 
 ---
 
-## 🧠 What is PIXORA?
+## 1. Project Overview
 
-**PIXORA** is an evidence-aware digital image forensic investigation system that combines established forensic evidence sources and evaluates whether the available evidence is **sufficient, consistent, applicable, complete, and reliable** enough to support a forensic conclusion.
+**PIXORA** is an evidence-aware digital image forensic investigation system. Most contemporary forensic and deepfake detection tools attempt binary classification (`Real` vs `Fake`) outputting opaque confidence scores without evaluating whether the available signals justify that claim.
 
-Instead of:
-
-```text
-Image → AI Model → REAL / EDITED
-```
-
-PIXORA follows:
-
-```text
-Image + Question
-      ↓
-Forensic Ingestion
-      ↓
-Pixel + Metadata + Provenance
-      ↓
-Optional Evidence Sources
-      ↓
-Evidence Normalization
-      ↓
-Evidence-to-Decision Engine
-      ↓
-Sufficiency + Decision Eligibility
-      ↓
-Forensic Assessment
-      ↓
-Explainable Report
-```
+PIXORA reframes digital image forensics around **evidentiary justification**:
+1. It gathers factual forensic observations across available analytical domains.
+2. It normalizes observations into structured evidence with explicit applicability and reliability bounds.
+3. It constructs an explicit evidence relationship graph.
+4. It evaluates **evidence sufficiency** and **decision eligibility** before issuing a conclusion.
+5. If the available evidence is incomplete, inapplicable, or uncorroborated, PIXORA **safely abstains** rather than issuing an unsubstantiated verdict.
 
 ---
 
-## 🏛️ Monorepo Architecture
+## 2. Problem Statement
 
-PIXORA is organized as a professional monorepo containing:
-- **`frontend/`**: Next.js 16 (React 19, TypeScript, Tailwind CSS) forensic workstation UI with evidence relationship graphs and traceable boundaries.
-- **`backend/`**: Python FastAPI forensic engine powered by Pillow, ExifRead, and custom analytical pipelines (pixel ELA variance, quantization matrix analysis, metadata heuristics, provenance audit, and a formal decision engine).
-  - **`backend/tests/`**: Automated test suite (84/84 tests passing) enforcing decision rules, abstention thresholds, and API contract integrity.
-- **`docs/`**: Architecture specifications, forensic methodology, evidentiary limitations, and screenshots.
-- **`scripts/`**: Reusable development utilities and validation runners.
+Automated forensic detectors frequently suffer from core methodological failure modes:
 
+- **Epistemic Overreach**: Forcing every image into binary classification regardless of evidentiary certainty.
+- **Absence Conflation**: Treating the absence of metadata (e.g. stripped EXIF from messaging apps) as proof of malicious manipulation.
+- **Domain Mismatch**: Applying compression-sensitive tools (like Error Level Analysis) to unsupported formats (like lossless PNG) and reporting artifacts as tampering.
+- **Uncorroborated Accusations**: Treating a single localized anomaly (such as edge contrast noise) as conclusive proof of forgery without secondary corroboration.
+- **Opaque Confidence Metrics**: Generating arbitrary percentages (e.g. "87% Fake") without mathematically validated probabilistic calibration.
+
+---
+
+## 3. PIXORA Approach
+
+PIXORA enforces formal boundaries between forensic stages:
+
+```text
+IMAGE INPUT
+    ↓
+1. ANALYZERS           (RawObservation: pure factual measurements)
+    ↓
+2. NORMALIZER          (Evidence: standardized reliability & bounds)
+    ↓
+3. RELATIONSHIP GRAPH  (EvidenceRelationship: explicit pairwise links)
+    ↓
+4. SUFFICIENCY GATE    (SufficiencyState: evaluates evidence completeness)
+    ↓
+5. DECISION ENGINE     (DecisionAssessment: bounded forensic claim)
+    ↓
+INVESTIGATION DOCKET   (Structured, traceable, explainable report)
 ```
+
+- **Separation of Measurement and Meaning**: Forensic analyzers report only measurable facts (e.g., maximum compression error difference). They never emit verdicts.
+- **Explicit Relationship Mapping**: Inferences require explicit relationships (`CONSISTENT_WITH`, `CONFLICTS`, `SUPPORTS`) between distinct evidentiary findings.
+- **Safe Abstention as a First-Class State**: If evidence is insufficient, PIXORA explicitly concludes `INSUFFICIENT_EVIDENCE` and halts further speculation.
+
+---
+
+## 4. Current Architecture
+
+PIXORA is built as a modular client-server forensic workstation:
+
+- **Backend Core (FastAPI / Python 3.11)**:
+  - High-performance asynchronous API service.
+  - Analyzer pipeline for Error Level Analysis (ELA), JPEG quantization tables, and EXIF container forensics.
+  - Deterministic normalizer, graph-based relationship engine, and rule-bounded decision maker.
+- **Frontend Workstation (Next.js 16 / React 19 / TypeScript)**:
+  - Interactive investigative console for forensic image inspection.
+  - Dynamic compression variance overlays, metadata inspectors, and evidence relationship cards.
+  - Strict contract enforcement: zero mock data fallback, zero silent client-side simulation.
+
+---
+
+## 5. Repository Structure
+
+The repository is organized as a clean, production-ready monorepo:
+
+```text
 PIXORA/
-├── frontend/                 # Next.js 16 Forensic Workstation
-│   ├── app/                  # App router (workstation page, styles, layout)
-│   ├── components/pixora/    # Forensic image viewer, evidence panel, assessment
-│   ├── lib/api/              # Live FastAPI client & forensic adapters
-│   ├── types/                # Forensic domain TypeScript interfaces
-│   ├── public/               # Static assets & test vectors
-│   └── package.json
-├── backend/                  # FastAPI Application & Decision Engine
-│   ├── api/                  # Ingestion endpoints (POST /api/investigate)
-│   ├── engine/               # Normalization, relationship, and decision logic
-│   ├── forensics/            # Pixel ELA, EXIF metadata, and provenance analyzers
-│   ├── models/               # Pydantic schemas (Investigation, Evidence, etc.)
-│   ├── tests/                # Automated backend unit & integration test suite
-│   ├── requirements.txt      # Python dependencies
-│   └── main.py               # Application entrypoint
-├── docs/                     # Architectural & specification documents
-│   ├── architecture/         # System architecture & forensic pipeline docs
-│   ├── forensic/             # Methodology, evidence models, and limitations
-│   └── screenshots/          # Workstation and investigation screenshots
-├── scripts/                  # Development & validation scripts
-│   ├── validation/           # API and image test runners
-│   └── development/          # Browser automation & test utilities
-├── .gitignore
-├── AGENTS.md
-├── README.md
-└── LICENSE
+├── frontend/                         # Next.js 16 Forensic Workstation
+│   ├── app/                          # App router (workstation page, styles, layout)
+│   ├── components/                   # UI components (pixora, analysis, assessment)
+│   ├── lib/                          # API clients & type-safe forensic adapters
+│   ├── public/                       # Static assets & test images
+│   ├── types/                        # Forensic domain TypeScript interfaces
+│   ├── package.json
+│   ├── package-lock.json
+│   ├── next.config.ts
+│   ├── next-env.d.ts
+│   ├── tsconfig.json
+│   └── eslint.config.mjs
+│
+├── backend/                          # FastAPI Forensic Engine & Decision Core
+│   ├── api/
+│   │   └── ingest.py                 # Endpoint: POST /api/investigate
+│   ├── engine/
+│   │   ├── decision_maker.py         # Forensic integrity & sufficiency engine
+│   │   ├── evidence_predicates.py    # Fact-checking predicates
+│   │   ├── normalizer.py             # RawObservation -> Evidence normalizer
+│   │   ├── pipeline.py               # Deterministic pipeline coordinator
+│   │   └── relationship_engine.py    # Explicit relationship graph builder
+│   ├── forensics/
+│   │   ├── metadata_analyzer.py      # EXIF & structure analysis
+│   │   ├── pixel_analyzer.py         # JPEG Error Level Analysis & DQT tables
+│   │   └── provenance_analyzer.py    # Provenance tracking boundary
+│   ├── models/
+│   │   ├── decision.py               # DecisionAssessment & state enums
+│   │   ├── evidence.py               # Evidence & EvidenceRelationship schemas
+│   │   ├── investigation.py          # Investigation docket schema
+│   │   └── observation.py            # RawObservation schema
+│   ├── tests/                        # 84 automated backend tests
+│   │   ├── fixtures.py               # Synthetic test image vectors
+│   │   ├── test_decision_engine.py
+│   │   ├── test_ela_applicability.py
+│   │   ├── test_forensic_safety.py
+│   │   ├── test_investigate_api.py
+│   │   ├── test_pipeline.py
+│   │   └── ...
+│   ├── requirements.txt              # Backend dependencies
+│   └── main.py                       # FastAPI entrypoint & Root Console
+│
+├── docs/                             # Technical documentation & assets
+│   ├── architecture/
+│   │   ├── system-architecture.md
+│   │   └── forensic-pipeline.md
+│   ├── forensic/
+│   │   ├── methodology.md
+│   │   ├── evidence-model.md
+│   │   └── limitations.md
+│   ├── screenshots/                  # Workstation & assessment screenshots
+│   └── submission/
+│
+├── scripts/                          # Reusable development & validation scripts
+│   ├── validation/
+│   │   ├── validate_images.py        # 5-image test against /api/investigate
+│   │   └── validate_api.py           # HTTP status & docket inspection
+│   └── development/
+│       ├── test_browser_flow.py      # Playwright end-to-end automation
+│       └── capture_localhost.py      # Automated screenshot generator
+│
+├── .gitignore                        # Monorepo ignore configuration
+├── AGENTS.md                         # Next.js agent operational rules
+├── README.md                         # Project documentation
+├── LICENSE                           # MIT License
+└── pytest.ini                        # Pytest monorepo test configuration
 ```
 
 ---
 
-## 🚀 Getting Started
+## 6. Implemented Forensic Methods
 
-### 1. Backend Setup & Run (FastAPI)
+The following forensic methods and evaluation stages are active and fully operational in the current release:
+
+### 1. Error Level Analysis (ELA)
+- **Module**: `backend/forensics/pixel_analyzer.py`
+- **Domain**: Lossy JPEG 8×8 DCT compression.
+- **Methodology**: Resaves the raster at a calibrated baseline quality factor (90) and measures pixel error disparities (`ImageChops.difference`).
+- **Measurements**: Measures maximum error difference, mean difference, variance, and localized anomaly bounding box.
+- **Safety Boundary**: Non-JPEG formats (e.g., PNG) are strictly flagged as `ELA_NOT_APPLICABLE` (`ObservationStatus.ABSENT`). ELA is not executed on unsupported compression domains.
+
+### 2. JPEG Compression & Quantization Matrix Analysis
+- **Module**: `backend/forensics/pixel_analyzer.py`
+- **Methodology**: Extracts luminance and chrominance quantization matrices from JPEG DQT markers.
+- **Inference**: Confirms whether the file has undergone lossy JPEG compression and exposes quantization table counts.
+
+### 3. EXIF & Metadata Forensics (Software/Editor Indicators)
+- **Module**: `backend/forensics/metadata_analyzer.py`
+- **Methodology**: Decodes EXIF structures via `exifread` and cross-references raster headers against file extensions.
+- **Observations**:
+  - `METADATA_STRUCTURAL_CONSISTENCY`: Format matches extension.
+  - `METADATA_STRUCTURAL_INCONSISTENCY`: Extension mismatch indicating renaming or masking.
+  - `EXIF_PRESENT_NO_SOFTWARE_TAG`: Hardware camera capture device preserved (e.g., Canon EOS 5D Mark IV).
+  - `EXIF_SOFTWARE_TAG_PRESENT`: Software signature identified (e.g., Adobe Photoshop, GIMP).
+  - `EXIF_ABSENT`: No EXIF header found. Treated as missing metadata, **not** as evidence of tampering.
+
+### 4. SHA-256 Identification & Raster Input Validation
+- **Module**: `backend/api/ingest.py`
+- **Methodology**: Computes SHA-256 digests on ingest for immutable chain-of-custody tracking. Validates raster integrity, dimensions, and byte bounds using Pillow before pipeline execution. Rejects empty or corrupt files with HTTP 400.
+
+### 5. Evidence Normalization
+- **Module**: `backend/engine/normalizer.py`
+- **Methodology**: Maps raw analyzer measurements (`RawObservation`) into standardized `Evidence` models with explicit confidence ratings, applicability bounds, and reliability tiers (`VERIFIED`, `SUPPORTED`, `UNVERIFIED`).
+
+### 6. Evidence Relationship Graph
+- **Module**: `backend/engine/relationship_engine.py`
+- **Methodology**: Constructs directional pairwise links (`SUPPORTS`, `CONFLICTS`, `CONSISTENT_WITH`, `DOES_NOT_ESTABLISH`) between distinct evidentiary findings to identify corroboration or contradiction.
+
+### 7. Evidence Sufficiency & Decision Eligibility
+- **Module**: `backend/engine/decision_maker.py`
+- **Methodology**: Evaluates whether available observations meet formal sufficiency requirements. Checks whether analytical coverage is complete or blocked by domain mismatches.
+
+### 8. Explainable Forensic Assessment & Safe Abstention
+- **Module**: `backend/engine/decision_maker.py`
+- **Methodology**: Generates human-readable, auditable conclusions detailing observations, inferences, supporting signals, conflicting signals, and explicit epistemic boundaries. Safely abstains (`INSUFFICIENT_EVIDENCE`) when evidence cannot support a definitive finding.
+
+---
+
+## 7. Evidence-to-Decision Pipeline
+
+The decision engine (`backend/engine/decision_maker.py`) applies a strict hierarchy of evidentiary gates:
+
+1. **Completeness & Boundaries**: Identifies missing evidence (e.g., missing EXIF, unverified provenance) and establishes what *cannot* be proven.
+2. **Conflict Gate**: Evaluates explicit `CONFLICTS` relationships from the graph. If verified provenance and pixel anomalies materially contradict each other, it returns `CONFLICTING_EVIDENCE` for manual examiner review.
+3. **Sufficiency Gate**: Checks whether valid analytical methods executed. If all applicable methods failed or are inapplicable, it safely abstains (`INSUFFICIENT_EVIDENCE`).
+4. **Corroboration Engine**:
+   - Localized ELA anomaly + Software metadata tag -> `SUPPORTED_MANIPULATION`.
+   - Localized ELA anomaly alone without corroboration -> `LIKELY_MANIPULATED` (with explicit caveat that compression variance alone does not prove malicious intent).
+   - Software metadata tag alone without pixel anomaly -> `LIKELY_MANIPULATED` (does not upgrade to `SUPPORTED_MANIPULATION`).
+   - Clean uniform ELA across compression grid -> `NO_SIGNIFICANT_MANIPULATION_EVIDENCE` (explicitly noting that absence of detected anomalies is not proof of authenticity).
+
+---
+
+## 8. Detection Outcome Matrix
+
+| Scenario | Input Format | Forensic Evidence State | Final Decision | Sufficiency | Eligibility | Core Explanation Summary |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **01 — Camera JPEG** | JPEG | Clean ELA + Camera EXIF | `NO_SIGNIFICANT_MANIPULATION_EVIDENCE` | `SUFFICIENT` | `CONCLUSION_MAY_BE_ISSUED` | Uniform compression error levels; does not prove origin authenticity. |
+| **02 — Metadata-Stripped JPEG** | JPEG | Clean ELA + No EXIF | `NO_SIGNIFICANT_MANIPULATION_EVIDENCE` | `SUFFICIENT` | `CONCLUSION_MAY_BE_ISSUED` | Clean ELA; metadata absence noted; does not block conclusion. |
+| **03 — Re-Encoded / Flat JPEG** | JPEG | Clean ELA | `NO_SIGNIFICANT_MANIPULATION_EVIDENCE` | `SUFFICIENT` | `CONCLUSION_MAY_BE_ISSUED` | No anomalous compression variance detected. |
+| **04 — Localized Pixel Alteration** | JPEG | ELA Anomaly + No EXIF | `LIKELY_MANIPULATED` | `SUFFICIENT` | `CONCLUSION_MAY_BE_ISSUED` | Compression disparity detected; note: alone does not prove malicious tampering. |
+| **05 — Edited + Software Trace** | JPEG | ELA Anomaly + Software Tag | `SUPPORTED_MANIPULATION` | `SUFFICIENT` | `CONCLUSION_MAY_BE_ISSUED` | Consistent signals: pixel anomaly corroborated by software traces. |
+| **06 — Software Trace Alone** | JPEG | Clean ELA + Software Tag | `LIKELY_MANIPULATED` | `SUFFICIENT` | `CONCLUSION_MAY_BE_ISSUED` | Software traces found; not upgraded to SUPPORTED without pixel corroboration. |
+| **07 — Lossless Image (PNG)** | PNG | ELA Inapplicable + No EXIF | `INSUFFICIENT_EVIDENCE` | `INSUFFICIENT` | `ABSTAIN` | ELA method inapplicable to format; no other evidence available. |
+| **08 — Analyzer Crash** | Any | Analyzer Exception | `ANALYSIS_FAILED` | `INSUFFICIENT` | `ABSTAIN` | Technical execution failure; separated from forensic uncertainty. |
+| **09 — Corrupt / Empty File** | Any | Failed Validation / 0 Bytes | `HTTP 400 Bad Request` | N/A | N/A | Technical rejection before forensic ingestion. |
+
+---
+
+## 9. Installation
+
+### Prerequisites
+- **Python**: Version 3.11 or higher
+- **Node.js**: Version 18.18 or higher (Node 20+ recommended)
+- **Package Manager**: `npm`
+
+### Clone Repository
+```bash
+git clone https://github.com/ys8619984-code/PIXORA.git
+cd PIXORA
+```
+
+---
+
+## 10. Backend Development
 
 ```bash
-# 1. Navigate to backend
-cd backend
-
-# 2. Create and activate a virtual environment
+# 1. Create and activate a Python virtual environment
 python -m venv venv
 # On Windows:
 venv\Scripts\activate
 # On Linux/macOS:
 source venv/bin/activate
 
-# 3. Install dependencies
-pip install -r requirements.txt
+# 2. Install backend dependencies
+pip install -r backend/requirements.txt
 
-# 4. Start the FastAPI server (runs on http://localhost:8000)
-uvicorn backend.main:app --reload --port 8000
-
-# 5. Run test suite
-pytest
+# 3. Start the FastAPI development server
+python -m uvicorn backend.main:app --reload --port 8000
 ```
 
-The backend API will be live at `http://localhost:8000`.  
-Interactive Swagger docs: `http://localhost:8000/docs`.
+- API Base URL: `http://localhost:8000`
+- Interactive OpenAPI Docs: `http://localhost:8000/docs`
+- Root Status Console: `http://localhost:8000/`
 
-### 2. Frontend Setup & Run (Next.js)
+---
+
+## 11. Frontend Development
 
 ```bash
-# 1. Navigate to frontend
+# 1. Navigate to the frontend directory
 cd frontend
 
-# 2. Install dependencies
+# 2. Install frontend dependencies
 npm install
 
-# 3. Start development server (runs on http://localhost:3000)
-npm run dev
+# 3. Start Next.js development server
+npm run dev -- -p 3000
 
-# 4. Build for production
+# 4. Build for production validation
 npm run build
-npm run start
 ```
 
-The frontend workstation connects directly to `http://localhost:8000/api/investigate` via `NEXT_PUBLIC_API_URL`.
+- Workstation UI: `http://localhost:3000`
 
 ---
 
-## 🎯 The Problem
+## 12. API Endpoints
 
-An image may be legitimately edited, maliciously manipulated, partially manipulated, AI-generated/edited, repeatedly processed, stripped of metadata, accompanied by misleading context, supported by conflicting evidence, or impossible to determine conclusively.
-
-Therefore PIXORA asks:
-
-> **What can actually be established about this image from the evidence available?**
+| Method | Endpoint | Description | Payload / Parameters | Response |
+| :--- | :--- | :--- | :--- | :--- |
+| `GET` | `/` | Forensic Status Console | None | HTML status dashboard or formatted JSON |
+| `GET` | `/api/health` | Health Check | None | `{"status": "ok", "message": "IMAGE-TRACE core is running."}` |
+| `POST` | `/api/investigate` | Ingestion & Investigation | `file`: Multipart upload | Full `Investigation` JSON docket |
+| `GET` | `/docs` | OpenAPI Documentation | None | Interactive Swagger UI |
 
 ---
 
-## 💡 Core USP — Evidence-to-Decision Intelligence
+## 13. Environment Configuration
 
-PIXORA does not blindly combine detector scores.
-
-```text
-Evidence
-  ↓
-Quality
-  ↓
-Applicability
-  ↓
-Relationships
-  ↓
-Conflicts
-  ↓
-Completeness
-  ↓
-Uncertainty
-  ↓
-Sufficiency
-  ↓
-Decision Eligibility
-  ↓
-Forensic Assessment
+### Frontend (`frontend/.env.local` or environment variables)
+```bash
+# Production backend API URL (Must NOT fall back to localhost in production)
+NEXT_PUBLIC_API_URL=https://pixora-325f.onrender.com
 ```
 
-**The goal is not merely to detect manipulation, but to determine what the evidence collectively justifies.**
+### Backend
+Backend runs with zero mandatory external environment variables for local development. Set `PORT` in cloud environments (Render automatically injects `$PORT`).
 
 ---
 
-## 🏗️ Investigative Data Flow
+## 14. Testing
 
-```text
-                    IMAGE + QUESTION
-                          ↓
-                  FORENSIC INGESTION
-                          ↓
-       ┌──────────────────┼──────────────────┐
-       ↓                  ↓                  ↓
-  PIXEL FORENSICS   METADATA FORENSICS   PROVENANCE
-       └──────────────────┼──────────────────┘
-                          ↓
-                 EVIDENCE NORMALIZATION
-                          ↓
-            ╔════════════════════════════╗
-            ║ EVIDENCE-TO-DECISION       ║
-            ║ INTELLIGENCE               ║
-            ║                            ║
-            ║ Quality • Applicability    ║
-            ║ Relationships • Conflicts  ║
-            ║ Completeness • Uncertainty ║
-            ║ Sufficiency • Eligibility  ║
-            ╚═══════════════╤════════════╝
-                          ↓
-                 FORENSIC ASSESSMENT
-                          ↓
-                  EXPLAINABLE REPORT
-                          ↓
-                  HUMAN INVESTIGATOR
+### Run All Backend Tests (84 tests)
+Executed from repository root:
+```bash
+python -m pytest -q backend/tests
+```
+
+### Run Multi-Image Live API Validation
+Validates live `/api/investigate` against 5 genuinely distinct images:
+```bash
+python scripts/validation/validate_images.py
+```
+
+### Run End-to-End Browser Flow (Playwright)
+Executes automated ingestion, scanning, modal navigation, and docket verification:
+```bash
+python scripts/development/test_browser_flow.py
 ```
 
 ---
 
-## 🔬 Forensic Evidence Sources
+## 15. Production Deployment
 
-### 🧬 Pixel Forensics
+### Backend (Render)
+- **Environment**: Python
+- **Root Directory**: `.` (Repository root)
+- **Build Command**: `pip install -r backend/requirements.txt`
+- **Start Command**: `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
 
-* Manipulation detection & localization
-* Splicing / copy-move detection
-* Object removal / inpainting
-* Noise inconsistencies
-* Compression inconsistencies
-* Resampling artifacts
-* Potential integrations: **TruFor, MVSS-Net**, classical techniques, and other validated/open implementations.
-
-### 🗂️ Metadata & File Forensics
-
-Analyzes **EXIF, JPEG structure, software identifiers, timestamps, camera information, file structure, thumbnails, color profiles, and compression**.
-
-> **Metadata is evidence, not truth.**
-
-Photoshop metadata indicates associated processing evidence; it does not automatically prove malicious manipulation.
-
-### 🔐 Provenance
-
-Leverages established infrastructure such as **C2PA / Content Credentials**:
-
-* Signed manifests
-* Credential chains
-* Creation/editing assertions
-* AI-related assertions
-
-```text
-PROVENANCE VALIDITY ≠ REAL-WORLD EVENT TRUTH
-```
-
-### 🧩 Optional Evidence
-
-* Synthetic-media analysis
-* Manipulation-history reconstruction
-* Context / claim analysis
-* External references
+### Frontend (Vercel)
+- **Framework Preset**: Next.js
+- **Root Directory**: `frontend`
+- **Build Command**: `npm run build`
+- **Environment Variable**: `NEXT_PUBLIC_API_URL` set to the deployed Render backend URL.
 
 ---
 
-## 📦 Evidence Normalization
+## 16. Current Limitations
 
-All forensic sources produce a common evidence representation:
-
-```json
-{
-  "source": "pixel_forensics",
-  "observation": "localized_anomaly",
-  "region": [420,180,210,190],
-  "confidence": 0.84,
-  "status": "OBSERVED",
-  "limitations": ["compression_sensitive"]
-}
-```
-
-This allows heterogeneous forensic systems to communicate through one evidence model.
+1. **Format Scope of ELA**: Error Level Analysis is mathematically bounded to lossy JPEG files. Lossless formats (PNG) cannot be evaluated using ELA and will abstain unless secondary metadata/provenance is present.
+2. **Absence of Evidence is Not Evidence of Absence**: Clean ELA across an image does not prove it is an authentic capture. It only proves that no localized compression disparities were detected.
+3. **Classical ELA Limitations**: ELA is subject to false positives on sharp high-contrast edges and false negatives on uniformly re-compressed multi-generation saves.
+4. **Unimplemented Provenance**: Cryptographic provenance (C2PA) verification is not yet implemented. Provenance state is currently unverified.
 
 ---
 
-## 🧠 Evidence Intelligence
+## 17. Future Work
 
-### Quality
+The following advanced capabilities are designated for future releases:
 
-`VERIFIED` • `SUPPORTED` • `WEAK` • `UNVERIFIED` • `UNKNOWN`
-
-### Applicability
-
-Determines whether evidence actually answers the investigative question.
-
-### Relationships
-
-`SUPPORTS` • `CONFLICTS` • `CONSISTENT WITH` • `DOES NOT ESTABLISH` • `MISSING` • `UNKNOWN`
-
-### Completeness
-
-Identifies missing evidence such as:
-
-```text
-Original Image → MISSING
-Provenance     → MISSING
-Metadata       → PARTIAL
-Independent Source → MISSING
-```
+- **Deep Learning Spatial Analyzers**: Integration of trained feature-inconsistency architectures (e.g. TruFor, MVSS-Net).
+- **C2PA Manifest Verification**: Cryptographic parsing of C2PA JUMBF boxes, signature validation, and certificate chain validation.
+- **Copy-Move & Inpainting Detection**: Keypoint matching (SIFT/ORB) and dense patch similarity analysis for duplicate region localization.
+- **Synthetic Media Detection**: Frequency-domain Fourier analysis and generative artifact detectors.
 
 ---
 
-## ⚖️ Evidence Sufficiency Engine
+## 18. Responsible Forensic Use
 
-PIXORA asks:
-
-> **Do we have enough evidence to make the requested decision?**
-
-```text
-Availability + Quality + Applicability
-+ Consistency + Completeness + Uncertainty
-                    ↓
-            Evidence Sufficiency
-```
-
-Possible states:
-
-`SUFFICIENT` • `PARTIALLY SUFFICIENT` • `INSUFFICIENT` • `CONFLICTING` • `UNKNOWN`
+- **Human-in-the-Loop**: PIXORA is an investigative aid designed to assist qualified forensic examiners, journalists, and researchers. It does not replace expert human judgment.
+- **No Magic Numbers**: The system intentionally avoids emitting uncalibrated percentage scores (e.g. "94% Authentic") to prevent misleading court or newsroom decisions.
+- **Epistemic Humility**: A finding of `NO_SIGNIFICANT_MANIPULATION_EVIDENCE` must never be cited as mathematical proof of real-world authenticity.
 
 ---
 
-## 🚦 Decision Eligibility Gate
+## 19. Project Status
 
-Before producing a strong conclusion, PIXORA checks whether the evidence justifies it.
-
-```text
-Pixel Detector     → SUSPICIOUS
-Metadata           → MISSING
-Provenance         → MISSING
-Original Image     → MISSING
-Detector Agreement → LOW
-```
-
-Instead of:
-
-```text
-FAKE — 87%
-```
-
-PIXORA can produce:
-
-```text
-DECISION ELIGIBILITY → FAILED
-Reason: Evidence insufficient and conflicting.
-
-→ INCONCLUSIVE
-```
-
-> **Abstention is a valid forensic outcome.**
-
----
-
-## 📋 Explainable Assessment
-
-PIXORA communicates:
-
-```text
-WHAT WAS OBSERVED
-        ↓
-WHAT IT MEANS
-        ↓
-WHAT SUPPORTS IT
-        ↓
-WHAT CONFLICTS
-        ↓
-WHAT IS MISSING
-        ↓
-WHAT CAN / CANNOT BE ESTABLISHED
-        ↓
-RECOMMENDED ACTION
-```
-
-Possible outcomes:
-
-`No Significant Manipulation Evidence` • `Supported Manipulation` • `Likely Manipulated` • `Conflicting Evidence` • `Insufficient Evidence` • `Unknown` • `Inconclusive` • `Manual Review Required`
-
----
-
-## 🛡️ Core Forensic Principles
-
-1. **Evidence-Aware Non-Binary Decisions**:
-   - `SUPPORTED_MANIPULATION`: Multiple independent, corroborating evidence signals with zero unresolvable conflicts.
-   - `INSUFFICIENT_EVIDENCE`: Isolated anomalies lacking corroboration (e.g. uncorroborated ELA variance or stripped EXIF).
-   - `CONFLICTING_EVIDENCE`: Contradictory evidence signals requiring manual forensic review.
-   - `ABSTAIN`: Analysis blocked due to format limitations (e.g. ELA on lossless PNG) or insufficient data.
-2. **Epistemological Traceability**:
-   - `OBSERVATION`: Raw measurable data (e.g. `ELA_MAX_DIFF = 62.4`, `SOFTWARE_TAG = Adobe Photoshop`).
-   - `INFERENCE`: Contextual interpretation (e.g. compression artifact vs editing artifact).
-   - `CONCLUSION`: Corroborated verdict strictly bounded by what can and cannot be proven.
-3. **Zero Silent Simulation**:
-   - If the forensic backend is offline or an ingestion error occurs, the workstation halts and explicitly displays `FORENSIC BACKEND UNAVAILABLE` rather than fabricating simulated evidence.
-4. **Honest Spatial Evidence**:
-   - Global frame metrics are clearly labeled as `GLOBAL FRAME MEASUREMENT` without fabricating artificial spatial bounding boxes.
-
----
-
-## 🆚 PIXORA vs Conventional Detection
-
-| Conventional                  | PIXORA                    |
-| ----------------------------- | ------------------------- |
-| Real / Fake                   | Evidence-aware assessment |
-| Single detector               | Multiple evidence sources |
-| Model confidence              | Quality + uncertainty     |
-| Black-box result              | Explainable reasoning     |
-| Signals treated independently | Evidence relationships    |
-| Conflicts ignored             | Conflicts represented     |
-| Missing evidence ignored      | Completeness analysis     |
-| Always concludes              | Can abstain               |
-| Score → Decision              | Eligibility → Decision    |
-| Detection-focused             | Investigation-focused     |
-
----
-
-## ⚠️ Responsible Forensics
-
-PIXORA assists human investigators; it does not replace expert judgment.
-
-Evidence should be distinguished as:
-
-`OBSERVED` • `SUPPORTED` • `INFERRED` • `UNKNOWN` • `NOT ESTABLISHED`
-
-The system must not present unsupported conclusions as absolute truth.
-
----
-
-# 🎯 Final USP
-
-## **Don't just detect. Determine whether the evidence is sufficient to conclude.**
-
-> **Existing forensic technologies generate evidence. PIXORA determines what that evidence collectively justifies.**
-
----
-
-<p align="center">
-
-### 🔎 PIXORA
-
-**Evidence-Aware Digital Image Forensic Investigation**
-
-**Detect less blindly. Investigate more intelligently.**
-
-</p>
+- **Status**: Research & Development Prototype (v1.0.0)
+- **Test Coverage**: 84 passing automated unit and integration tests.
+- **License**: MIT License (see [`LICENSE`](LICENSE)).
