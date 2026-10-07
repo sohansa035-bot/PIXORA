@@ -136,7 +136,7 @@ def run_investigation(
             if e.observation_type and "NOT_APPLICABLE" in e.observation_type:
                 app = "NOT_APPLICABLE"
             else:
-                app = "NOT_AVAILABLE"
+                app = "APPLICABLE"
         elif e.observation_type and "ABSENT" in e.observation_type:
             avail = "MISSING"
             

@@ -4,8 +4,8 @@ from backend.models.evidence import EvidenceType, EvidenceStatus
 from backend.models.decision import FinalDecisionState, SufficiencyState
 from tests.fixtures import noise_png, noise_jpeg, flat_jpeg
 
-def _run(content: bytes) -> dict:
-    inv = run_investigation(content, hashlib.sha256(content).hexdigest(), filename="test")
+def _run(content: bytes, filename="test.png") -> dict:
+    inv = run_investigation(content, hashlib.sha256(content).hexdigest(), filename=filename)
     return inv
 
 def test_png_ela_not_applicable():
@@ -24,6 +24,9 @@ def test_png_ela_not_applicable():
     assert hasattr(inv, "forensic_boundaries")
     assert inv.forensic_boundaries is not None
     assert len(inv.forensic_boundaries.missing_evidence) > 0
+    # Test 2 - PNG ELA Wording
+    assert not any("ELA failed" in me for me in inv.forensic_boundaries.missing_evidence)
+    assert any("ELA not applicable to this file format" in me for me in inv.forensic_boundaries.missing_evidence)
 
 def test_png_decision():
     # Test B - PNG ELA cannot contribute to LIKELY_MANIPULATED
@@ -36,14 +39,14 @@ def test_png_decision():
 
 def test_jpeg_ela_applicable():
     # Test C - JPEG can execute ELA
-    inv = _run(noise_jpeg())
+    inv = _run(noise_jpeg(), filename="test.jpeg")
     ela_evidence = [e for e in inv.evidence if e.observation_type == "ELA_DIFFERENCE_ABOVE_THRESHOLD"]
     assert len(ela_evidence) == 1
     assert ela_evidence[0].status == EvidenceStatus.SUPPORTED
 
 def test_ela_limitation_retained():
     # Test D - ELA limitation
-    inv = _run(noise_jpeg())
+    inv = _run(noise_jpeg(), filename="test.jpeg")
     ela_evidence = [e for e in inv.evidence if e.observation_type == "ELA_DIFFERENCE_ABOVE_THRESHOLD"][0]
     assert "NOT scientifically validated" in ela_evidence.limitations
 
@@ -56,7 +59,21 @@ def test_non_applicable_evidence_does_not_increase_sufficiency():
 def test_empty_relationship_graph_no_corroboration():
     # Test F - Empty relationship graph must not automatically imply corroboration
     # flat_jpeg has no ELA anomaly, no software tag.
-    inv = _run(flat_jpeg())
+    inv = _run(flat_jpeg(), filename="test.jpeg")
     assert len(inv.relationships) == 0
     # The lack of relationships shouldn't lead to a positive result
     assert inv.assessment.final_decision == FinalDecisionState.INSUFFICIENT_EVIDENCE
+
+def test_png_structural_consistency():
+    # TEST 1 - Valid PNG structural consistency
+    inv = _run(noise_png())
+    # Should say "File structure and extension are consistent."
+    assert "File structure and extension are consistent." in inv.forensic_boundaries.what_can_be_established
+    assert not any("Structural inconsistency detected" in s for s in inv.forensic_boundaries.what_can_be_established)
+
+def test_c2pa_semantics():
+    # TEST 4 - C2PA semantics
+    inv = _run(noise_png())
+    c2pa_summary = next(s for s in inv.evidence_summary if s.category == "C2PA")
+    assert c2pa_summary.availability == "UNAVAILABLE"
+    assert c2pa_summary.applicability == "APPLICABLE"

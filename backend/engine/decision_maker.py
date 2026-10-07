@@ -30,7 +30,11 @@ from backend.engine.evidence_predicates import (
     is_pixel_assessed,
     is_provenance_verified,
     is_software_tag,
+    is_structural_inconsistency,
+    is_structural_consistency,
+    is_jpeg_quantization_observed,
 )
+from backend.models.observation import ObservationType
 from backend.engine.relationship_engine import build_relationships
 
 
@@ -53,10 +57,21 @@ def evaluate_evidence(
     meta_available = any(is_metadata_available(e) for e in evidence_list)
     has_meta_software = any(is_software_tag(e) for e in evidence_list)
     is_prov_valid = any(is_provenance_verified(e) for e in evidence_list)
+    has_structural_inconsistency = any(is_structural_inconsistency(e) for e in evidence_list)
+    has_structural_consistency = any(is_structural_consistency(e) for e in evidence_list)
+    has_jpeg_quantization = any(is_jpeg_quantization_observed(e) for e in evidence_list)
 
     what_can = []
     what_cannot = []
     missing = []
+    
+    if has_structural_inconsistency:
+        what_can.append("Structural inconsistency detected: file structure or format does not match extension.")
+    elif has_structural_consistency:
+        what_can.append("File structure and extension are consistent.")
+        
+    if has_jpeg_quantization:
+        what_can.append("JPEG quantization tables observed.")
 
     if has_meta_missing:
         missing.append("Original EXIF Metadata")
@@ -70,8 +85,13 @@ def evaluate_evidence(
         what_cannot.append("Guarantee mathematical authenticity of the origin.")
 
     if not pixel_assessed:
-        missing.append("Pixel-level analysis result (ELA failed or was not run)")
-        what_cannot.append("Assess pixel-level consistency of the image content.")
+        is_ela_not_applicable = any(e.observation_type == ObservationType.ELA_NOT_APPLICABLE for e in evidence_list)
+        if is_ela_not_applicable:
+            missing.append("Pixel-level analysis (ELA not applicable to this file format)")
+            what_cannot.append("Assess pixel-level consistency because the format is outside the supported JPEG domain.")
+        else:
+            missing.append("Pixel-level analysis result (ELA failed or was not run)")
+            what_cannot.append("Assess pixel-level consistency of the image content.")
 
     insufficiency_reasons = []
     if not pixel_assessed and not is_prov_valid:
@@ -123,7 +143,10 @@ def evaluate_evidence(
     # 4. Conclusion
     if has_pixel_anomaly:
         what_can.append("Pixel-level anomalies detected consistent with localized editing.")
-        if consistent:
+        
+        has_software_corroboration = any(is_software_tag(e) for e in evidence_list) and consistent
+        
+        if has_software_corroboration:
             what_can.append(
                 "Metadata Software tag indicates the file was processed by software, "
                 "which is consistent with the pixel-level anomaly."

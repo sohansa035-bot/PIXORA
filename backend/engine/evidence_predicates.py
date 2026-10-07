@@ -46,9 +46,28 @@ def is_software_tag(e: Evidence) -> bool:
 
 
 def is_metadata_available(e: Evidence) -> bool:
-    """Metadata evidence that actually describes EXIF content (not absent, not failed)."""
-    return e.evidence_type == EvidenceType.METADATA and is_informative(e) and not is_metadata_absent(e)
+    """Metadata evidence that actually describes EXIF content (not absent, not failed, not just structural)."""
+    if e.evidence_type != EvidenceType.METADATA or not is_informative(e):
+        return False
+    if is_metadata_absent(e) or is_structural_inconsistency(e) or is_structural_consistency(e):
+        return False
+    return True
 
 
 def is_provenance_verified(e: Evidence) -> bool:
     return e.evidence_type == EvidenceType.PROVENANCE and e.status == EvidenceStatus.VERIFIED
+
+def is_structural_inconsistency(e: Evidence) -> bool:
+    if e.evidence_type != EvidenceType.METADATA or not is_informative(e):
+        return False
+    return e.observation_type == ObservationType.METADATA_STRUCTURAL_INCONSISTENCY
+
+def is_structural_consistency(e: Evidence) -> bool:
+    if e.evidence_type != EvidenceType.METADATA or not is_informative(e):
+        return False
+    return e.observation_type == ObservationType.METADATA_STRUCTURAL_CONSISTENCY
+
+def is_jpeg_quantization_observed(e: Evidence) -> bool:
+    if e.evidence_type != EvidenceType.PIXEL or not is_informative(e):
+        return False
+    return e.observation_type == ObservationType.JPEG_QUANTIZATION_OBSERVED
