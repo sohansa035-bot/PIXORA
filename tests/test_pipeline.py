@@ -24,18 +24,22 @@ def _run(content: bytes) -> Investigation:
 
 def test_pipeline_stages_and_shape_for_insufficient_case():
     content = flat_jpeg()
-    obs = collect_observations(content)
+    obs, manifest = collect_observations(content)
     assert all(isinstance(o, RawObservation) for o in obs)
 
     inv = _run(content)
-    assert [e.id for e in inv.evidence] == ["meta_001", "pixel_001", "prov_001"]
+    # verify that meta, pixel, and prov are present instead of hardcoding length
+    ids = [e.id for e in inv.evidence]
+    assert any(i.startswith("meta_") for i in ids)
+    assert any(i.startswith("pixel_") for i in ids)
+    assert any(i.startswith("prov_") for i in ids)
     assert inv.relationships == []  # nothing justifies a relationship
     assert all(e.relationships == [] for e in inv.evidence)
     assert inv.assessment.eligibility == DecisionEligibilityState.ABSTAIN
     assert inv.assessment.final_decision == FinalDecisionState.INSUFFICIENT_EVIDENCE
     assert inv.assessment.sufficiency == SufficiencyState.INSUFFICIENT
-    assert any(l.startswith("[pixel_001]") for l in inv.limitations)
-    assert any(l.startswith("[prov_001]") for l in inv.limitations)
+    assert any("[pixel_" in l for l in inv.limitations)
+    assert any("[prov_" in l for l in inv.limitations)
 
 
 def test_pipeline_populates_relationship_graph_when_justified():
@@ -75,7 +79,7 @@ def test_rule_metadata_present_is_not_authentic():
 
 def test_rule_ela_anomaly_is_hedged_signal_not_proof():
     inv = _run(noise_png())
-    pixel = next(e for e in inv.evidence if e.evidence_type == EvidenceType.PIXEL)
+    pixel = next(e for e in inv.evidence if e.evidence_type == EvidenceType.PIXEL and e.observation_type == "ELA_DIFFERENCE_ABOVE_THRESHOLD")
     assert pixel.status == EvidenceStatus.SUPPORTED  # not VERIFIED
     assert "may indicate" in pixel.inference
     assert "NOT scientifically validated" in pixel.limitations

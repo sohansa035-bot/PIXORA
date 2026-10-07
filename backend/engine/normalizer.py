@@ -75,6 +75,38 @@ NORMALIZATION_RULES: Dict[ObservationType, NormalizationRule] = {
         applicability="Contextual.",
         inference=None,  # absence of one tag justifies no inference
     ),
+    ObservationType.METADATA_STRUCTURAL_INCONSISTENCY: NormalizationRule(
+        allowed_types=frozenset({EvidenceType.METADATA}),
+        allowed_statuses=frozenset({ObservationStatus.OBSERVED}),
+        status=EvidenceStatus.SUPPORTED,
+        reliability=Reliability.HIGH,
+        applicability="Detects file renaming or structural tampering.",
+        inference="File structure or format does not match the provided extension.",
+    ),
+    ObservationType.METADATA_STRUCTURAL_CONSISTENCY: NormalizationRule(
+        allowed_types=frozenset({EvidenceType.METADATA}),
+        allowed_statuses=frozenset({ObservationStatus.OBSERVED}),
+        status=EvidenceStatus.VERIFIED,
+        reliability=Reliability.HIGH,
+        applicability="Confirms file structure matches its extension.",
+        inference="File extension matches the actual decoded format.",
+    ),
+    ObservationType.JPEG_QUANTIZATION_OBSERVED: NormalizationRule(
+        allowed_types=frozenset({EvidenceType.PIXEL}),
+        allowed_statuses=frozenset({ObservationStatus.OBSERVED}),
+        status=EvidenceStatus.VERIFIED,
+        reliability=Reliability.HIGH,
+        applicability="Identifies JPEG compression traits.",
+        inference="Image has evidence of JPEG compression.",
+    ),
+    ObservationType.JPEG_QUANTIZATION_NOT_APPLICABLE: NormalizationRule(
+        allowed_types=frozenset({EvidenceType.PIXEL}),
+        allowed_statuses=frozenset({ObservationStatus.ABSENT}),
+        status=EvidenceStatus.UNAVAILABLE,
+        reliability=Reliability.UNKNOWN,
+        applicability="JPEG analysis cannot run on this format.",
+        inference=None,
+    ),
     ObservationType.ELA_DIFFERENCE_ABOVE_THRESHOLD: NormalizationRule(
         allowed_types=frozenset({EvidenceType.PIXEL}),
         allowed_statuses=frozenset({ObservationStatus.OBSERVED}),
@@ -155,6 +187,7 @@ def normalize_observation(obs: RawObservation, evidence_id: str) -> Evidence:
 
     return Evidence(
         id=evidence_id,
+        source_observation_id=obs.id if obs.id else None,
         source=obs.source,
         evidence_type=obs.evidence_type,
         observation=obs.observation,

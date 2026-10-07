@@ -25,6 +25,7 @@ class Reliability(str, Enum):
 
 class Evidence(BaseModel):
     id: str
+    source_observation_id: Optional[str] = None
     source: str
     evidence_type: EvidenceType
     observation: str

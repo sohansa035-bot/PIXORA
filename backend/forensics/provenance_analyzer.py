@@ -4,7 +4,7 @@ from backend.models.observation import RawObservation, ObservationType, Observat
 SOURCE = "provenance_analyzer"
 
 
-def analyze_provenance(image_bytes: bytes) -> list[RawObservation]:
+def analyze_provenance(image_bytes: bytes, **kwargs) -> list[RawObservation]:
     """Provenance placeholder.
 
     C2PA / cryptographic provenance verification is NOT implemented. This
