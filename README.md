@@ -184,7 +184,7 @@ Forensic Assessment
             ║ Relationships • Conflicts  ║
             ║ Completeness • Uncertainty ║
             ║ Sufficiency • Eligibility  ║
-            ╚═══════════════╤══════════════╝
+            ╚═══════════════╤════════════╝
                           ↓
                  FORENSIC ASSESSMENT
                           ↓
