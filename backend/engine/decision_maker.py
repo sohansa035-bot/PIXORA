@@ -139,11 +139,17 @@ def evaluate_evidence(
 
     insufficiency_reasons = []
     if not pixel_assessed and not is_prov_valid:
-        insufficiency_reasons.append(
-            "Pixel-level analysis produced no usable result (format not applicable or analysis failed) and no verified provenance is available."
-        )
-        if not meta_available:
-            insufficiency_reasons.append("Metadata is also unavailable.")
+        is_ela_not_applicable = any(e.observation_type == ObservationType.ELA_NOT_APPLICABLE for e in evidence_list)
+        if is_ela_not_applicable and not meta_available:
+            insufficiency_reasons.append(
+                "The current pixel-level ELA method is not applicable to this image format, and no additional usable forensic evidence was available."
+            )
+        else:
+            insufficiency_reasons.append(
+                "Pixel-level analysis produced no usable result (format not applicable or analysis failed) and no verified provenance is available."
+            )
+            if not meta_available:
+                insufficiency_reasons.append("Metadata is also unavailable.")
     
     sufficiency = SufficiencyState.INSUFFICIENT if insufficiency_reasons else SufficiencyState.SUFFICIENT
 
@@ -191,7 +197,7 @@ def evaluate_evidence(
             return _assessment(
                 DecisionEligibilityState.CONCLUSION_MAY_BE_ISSUED,
                 FinalDecisionState.SUPPORTED_MANIPULATION,
-                "Evidence is sufficient and consistent. Pixel anomalies, corroborated by software traces, support a conclusion of digital manipulation.",
+                "Evidence is sufficient and consistent. Multiple consistent forensic signals support the manipulation assessment: pixel anomalies, corroborated by software traces, support a conclusion of digital manipulation.",
                 consistent,
             )
         else:
@@ -207,12 +213,23 @@ def evaluate_evidence(
             DecisionEligibilityState.CONCLUSION_MAY_BE_ISSUED,
             FinalDecisionState.LIKELY_MANIPULATED,
             "Software editing traces found in metadata, though no pixel anomalies were strongly detected. "
-            "Image was likely modified.",
+            "Software metadata indicates that software interacted with the file, but does not independently prove malicious manipulation.",
+        )
+
+    if has_meta_missing or not meta_available:
+        return _assessment(
+            DecisionEligibilityState.CONCLUSION_MAY_BE_ISSUED,
+            FinalDecisionState.NO_SIGNIFICANT_MANIPULATION_EVIDENCE,
+            "No significant manipulation indicators were detected by the applicable forensic analysis. "
+            "Error level analysis across compression blocks indicates a uniform error-level distribution with no significant localized anomalies detected. "
+            "However, metadata is unavailable and origin authenticity is not established. "
+            "NOTE: Absence of detected anomalies does not guarantee contextual truth, nor does it prove origin authenticity.",
         )
 
     return _assessment(
         DecisionEligibilityState.CONCLUSION_MAY_BE_ISSUED,
         FinalDecisionState.NO_SIGNIFICANT_MANIPULATION_EVIDENCE,
-        "Evidence is sufficient and consistent. Error level analysis across compression blocks indicates a uniform error-level distribution with no significant localized anomalies detected. "
+        "No significant manipulation indicators were detected by the applicable forensic analysis. "
+        "Error level analysis across compression blocks indicates a uniform error-level distribution with no significant localized anomalies detected. "
         "NOTE: Absence of detected anomalies does not guarantee contextual truth, nor does it prove origin authenticity.",
     )
