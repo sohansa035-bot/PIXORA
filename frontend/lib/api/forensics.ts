@@ -119,7 +119,14 @@ export const ForensicsAPI = {
       throw new Error('NO_FILE_PROVIDED: No file provided for forensic investigation.');
     }
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const isProduction = process.env.NODE_ENV === 'production';
+    const rawApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+    const apiUrl = rawApiUrl || (!isProduction ? 'http://localhost:8000' : '');
+
+    if (!apiUrl) {
+      throw new Error('CONFIG_ERROR: NEXT_PUBLIC_API_URL environment variable is not configured for production deployment.');
+    }
+
     const formData = new FormData();
     formData.append('file', uploadFile);
 
@@ -169,7 +176,7 @@ export const ForensicsAPI = {
       // RULE 2: NO SILENT SIMULATION
       // Never silently fall back to simulated forensic results!
       console.error('LIVE FORENSIC BACKEND FAILED:', networkError);
-      throw new Error(`FORENSIC_BACKEND_UNAVAILABLE: ${networkError.message || 'Cannot reach FastAPI server at http://localhost:8000'}`);
+      throw new Error(`FORENSIC_BACKEND_UNAVAILABLE: ${networkError.message || `Cannot reach forensic backend at ${apiUrl}`}`);
     }
   },
 
