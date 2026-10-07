@@ -46,29 +46,41 @@ Explainable Report
 
 ## 🏛️ Monorepo Architecture
 
-PIXORA is organized as a monorepo containing:
+PIXORA is organized as a professional monorepo containing:
+- **`frontend/`**: Next.js 16 (React 19, TypeScript, Tailwind CSS) forensic workstation UI with evidence relationship graphs and traceable boundaries.
 - **`backend/`**: Python FastAPI forensic engine powered by Pillow, ExifRead, and custom analytical pipelines (pixel ELA variance, quantization matrix analysis, metadata heuristics, provenance audit, and a formal decision engine).
-- **`frontend/`**: Next.js 16 (React 19, TypeScript, Tailwind CSS) forensic workstation UI with real-time analysis streaming, evidence relationship graphs, and traceable forensic boundaries.
-- **`tests/`**: Automated test suite (77/77 tests passing) enforcing decision rules, abstention thresholds, and API contract integrity.
-- **`docs/`**: Architecture diagrams, forensic boundaries, and verification reports.
+  - **`backend/tests/`**: Automated test suite (84/84 tests passing) enforcing decision rules, abstention thresholds, and API contract integrity.
+- **`docs/`**: Architecture specifications, forensic methodology, evidentiary limitations, and screenshots.
+- **`scripts/`**: Reusable development utilities and validation runners.
 
 ```
 PIXORA/
-├── backend/                  # FastAPI Application & Decision Engine
-│   ├── api/                  # Ingestion endpoints (POST /api/investigate)
-│   ├── engine/               # Normalization, relationship, and decision logic
-│   ├── forensics/            # Pixel ELA, EXIF metadata, and provenance analyzers
-│   ├── models/               # Pydantic schemas (Investigation, Evidence, etc.)
-│   ├── requirements.txt      # Python dependencies
-│   └── main.py               # Application entrypoint
 ├── frontend/                 # Next.js 16 Forensic Workstation
 │   ├── app/                  # App router (workstation page, styles, layout)
 │   ├── components/pixora/    # Forensic image viewer, evidence panel, assessment
 │   ├── lib/api/              # Live FastAPI client & forensic adapters
 │   ├── types/                # Forensic domain TypeScript interfaces
-│   └── public/               # Static assets & test vectors
-├── tests/                    # Backend unit & integration test suite
-└── docs/                     # Architectural & specification documents
+│   ├── public/               # Static assets & test vectors
+│   └── package.json
+├── backend/                  # FastAPI Application & Decision Engine
+│   ├── api/                  # Ingestion endpoints (POST /api/investigate)
+│   ├── engine/               # Normalization, relationship, and decision logic
+│   ├── forensics/            # Pixel ELA, EXIF metadata, and provenance analyzers
+│   ├── models/               # Pydantic schemas (Investigation, Evidence, etc.)
+│   ├── tests/                # Automated backend unit & integration test suite
+│   ├── requirements.txt      # Python dependencies
+│   └── main.py               # Application entrypoint
+├── docs/                     # Architectural & specification documents
+│   ├── architecture/         # System architecture & forensic pipeline docs
+│   ├── forensic/             # Methodology, evidence models, and limitations
+│   └── screenshots/          # Workstation and investigation screenshots
+├── scripts/                  # Development & validation scripts
+│   ├── validation/           # API and image test runners
+│   └── development/          # Browser automation & test utilities
+├── .gitignore
+├── AGENTS.md
+├── README.md
+└── LICENSE
 ```
 
 ---

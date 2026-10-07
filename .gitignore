@@ -1,21 +1,62 @@
+# ==================================================
+# PIXORA Monorepo .gitignore
+# ==================================================
+
+# Dependencies
+node_modules/
+/node_modules/
+frontend/node_modules/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# Next.js / Frontend
+.next/
+/.next/
+frontend/.next/
+out/
+/out/
+build/
+/build/
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+frontend/tsconfig.tsbuildinfo
+next-env.d.ts
+
 # Python / Backend
 venv/
+.venv/
 __pycache__/
-*.pyc
-.env
+*.py[cod]
+*$py.class
 .pytest_cache/
+/.pytest_cache/
+backend/.pytest_cache/
 uploads/
 *.log
 
-# Node / Frontend
-node_modules/
-.next/
-out/
-build/
-*.tsbuildinfo
-next-env.d.ts
-.DS_Store
+# Environment & Secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*
 
-# Temporary & Test Artifacts
+# Testing & Coverage
+coverage/
+/coverage/
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+*.pem
+.vercel
+
+# Temporary / Scratch
 scratch/
 *.png.tmp
