@@ -32,8 +32,9 @@ DEFAULT_ANALYZERS: Sequence[Analyzer] = (analyze_metadata, analyze_pixels, analy
 
 import io
 from PIL import Image
-from backend.models.investigation import Investigation, AnalysisMetadata, AnalyzerManifestEntry
+from backend.models.investigation import Investigation, AnalysisMetadata, AnalyzerManifestEntry, ForensicBoundaries, EvidenceSummaryEntry
 from backend.models.observation import RawObservation, ObservationStatus
+from backend.models.evidence import EvidenceType, EvidenceStatus
 
 def collect_observations(content: bytes, analyzers: Sequence[Analyzer] = DEFAULT_ANALYZERS, **kwargs) -> tuple[List[RawObservation], List[AnalyzerManifestEntry]]:
     observations: List[RawObservation] = []
@@ -106,6 +107,46 @@ def run_investigation(
         height=height
     )
 
+    limitations = collect_limitations(evidence)
+    
+    forensic_boundaries = ForensicBoundaries(
+        what_can_be_established=assessment.what_can_be_established,
+        what_cannot_be_established=assessment.what_cannot_be_established,
+        limitations=limitations,
+        missing_evidence=assessment.missing_evidence,
+    )
+    
+    evidence_summary = []
+    for e in evidence:
+        cat = str(e.evidence_type.value)
+        if e.observation_type:
+            if "ELA" in e.observation_type:
+                cat = "ELA"
+            elif "JPEG_QUANTIZATION" in e.observation_type:
+                cat = "JPEG_QUANTIZATION"
+            elif "PROVENANCE" in e.observation_type or "C2PA" in e.observation_type:
+                cat = "C2PA"
+        elif e.evidence_type == EvidenceType.PROVENANCE:
+            cat = "C2PA"
+            
+        avail = "AVAILABLE"
+        app = "APPLICABLE"
+        if e.status in (EvidenceStatus.UNAVAILABLE, EvidenceStatus.UNKNOWN):
+            avail = "UNAVAILABLE"
+            if e.observation_type and "NOT_APPLICABLE" in e.observation_type:
+                app = "NOT_APPLICABLE"
+            else:
+                app = "NOT_AVAILABLE"
+        elif e.observation_type and "ABSENT" in e.observation_type:
+            avail = "MISSING"
+            
+        evidence_summary.append(EvidenceSummaryEntry(
+            category=cat,
+            availability=avail,
+            applicability=app,
+            reliability=str(e.reliability.value) if e.reliability else "UNKNOWN"
+        ))
+
     return Investigation(
         id=inv_id,
         image_hash=image_hash,
@@ -114,5 +155,7 @@ def run_investigation(
         evidence=evidence,
         relationships=relationships,
         assessment=assessment,
-        limitations=collect_limitations(evidence),
+        limitations=limitations,
+        forensic_boundaries=forensic_boundaries,
+        evidence_summary=evidence_summary,
     )

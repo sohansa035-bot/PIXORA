@@ -18,6 +18,18 @@ class AnalyzerManifestEntry(BaseModel):
     name: str
     status: str
 
+class ForensicBoundaries(BaseModel):
+    what_can_be_established: List[str]
+    what_cannot_be_established: List[str]
+    limitations: List[str]
+    missing_evidence: List[str]
+
+class EvidenceSummaryEntry(BaseModel):
+    category: str
+    availability: str
+    applicability: str
+    reliability: str
+
 class Investigation(BaseModel):
     id: str
     image_hash: str
@@ -30,3 +42,6 @@ class Investigation(BaseModel):
     assessment: Optional[DecisionAssessment] = None
     # Aggregated, per-evidence limitations ("[evidence_id] limitation text").
     limitations: List[str] = []
+    
+    forensic_boundaries: Optional[ForensicBoundaries] = None
+    evidence_summary: List[EvidenceSummaryEntry] = []

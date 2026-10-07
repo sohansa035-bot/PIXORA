@@ -58,7 +58,7 @@ def test_pipeline_populates_relationship_graph_when_justified():
 
 def test_investigation_serializes_all_required_sections():
     data = _run(noise_jpeg()).model_dump(mode="json")
-    for key in ("evidence", "relationships", "assessment", "limitations"):
+    for key in ("evidence", "relationships", "assessment", "limitations", "forensic_boundaries", "evidence_summary"):
         assert key in data
     for key in ("final_decision", "eligibility", "sufficiency", "relationship_basis"):
         assert key in data["assessment"]

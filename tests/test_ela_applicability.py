@@ -19,6 +19,11 @@ def test_png_ela_not_applicable():
     not_applicable = [e for e in ela_evidence if e.observation_type == "ELA_NOT_APPLICABLE"]
     assert len(not_applicable) == 1
     assert not_applicable[0].status == EvidenceStatus.UNAVAILABLE
+    
+    # Test boundary fields
+    assert hasattr(inv, "forensic_boundaries")
+    assert inv.forensic_boundaries is not None
+    assert len(inv.forensic_boundaries.missing_evidence) > 0
 
 def test_png_decision():
     # Test B - PNG ELA cannot contribute to LIKELY_MANIPULATED
