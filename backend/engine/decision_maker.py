@@ -140,15 +140,10 @@ def evaluate_evidence(
     insufficiency_reasons = []
     if not pixel_assessed and not is_prov_valid:
         insufficiency_reasons.append(
-            "Pixel-level analysis produced no usable result (unknown, not clean) and no verified provenance is available."
+            "Pixel-level analysis produced no usable result (format not applicable or analysis failed) and no verified provenance is available."
         )
         if not meta_available:
             insufficiency_reasons.append("Metadata is also unavailable.")
-    elif not meta_available and not has_pixel_anomaly and not is_prov_valid:
-        # Pre-existing rule: no metadata, no provenance, no pixel anomaly -> abstain rather than claim "real".
-        insufficiency_reasons.append("Image lacks metadata, provenance, and significant pixel anomalies.")
-    elif has_pixel_anomaly and not meta_available and not is_prov_valid:
-        insufficiency_reasons.append("ELA anomaly detected, but metadata and provenance are unavailable. Available evidence may warrant further investigation, but does not independently establish manipulation.")
     
     sufficiency = SufficiencyState.INSUFFICIENT if insufficiency_reasons else SufficiencyState.SUFFICIENT
 
@@ -203,7 +198,8 @@ def evaluate_evidence(
             return _assessment(
                 DecisionEligibilityState.CONCLUSION_MAY_BE_ISSUED,
                 FinalDecisionState.LIKELY_MANIPULATED,
-                "Pixel anomalies detected, but without corroborating metadata evidence, this cannot definitively prove manipulation. Likely manipulated.",
+                "Localized pixel-level compression anomalies detected via error level analysis. "
+                "While consistent with potential compression disruption or modification, an ELA anomaly alone does not definitively prove manipulation or malicious tampering without secondary corroboration.",
             )
 
     if has_meta_software:
@@ -217,6 +213,6 @@ def evaluate_evidence(
     return _assessment(
         DecisionEligibilityState.CONCLUSION_MAY_BE_ISSUED,
         FinalDecisionState.NO_SIGNIFICANT_MANIPULATION_EVIDENCE,
-        "Evidence is sufficient and consistent. No significant indicators of manipulation were found. "
-        "NOTE: This does not guarantee contextual truth.",
+        "Evidence is sufficient and consistent. Error level analysis across compression blocks indicates a uniform error-level distribution with no significant localized anomalies detected. "
+        "NOTE: Absence of detected anomalies does not guarantee contextual truth, nor does it prove origin authenticity.",
     )

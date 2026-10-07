@@ -58,11 +58,12 @@ def test_non_applicable_evidence_does_not_increase_sufficiency():
 
 def test_empty_relationship_graph_no_corroboration():
     # Test F - Empty relationship graph must not automatically imply corroboration
-    # flat_jpeg has no ELA anomaly, no software tag.
+    # flat_jpeg has no ELA anomaly, no software tag -> NO_SIGNIFICANT_MANIPULATION_EVIDENCE
     inv = _run(flat_jpeg(), filename="test.jpeg")
     assert len(inv.relationships) == 0
-    # The lack of relationships shouldn't lead to a positive result
-    assert inv.assessment.final_decision == FinalDecisionState.INSUFFICIENT_EVIDENCE
+    # Clean JPEG with no ELA anomaly concludes NO_SIGNIFICANT_MANIPULATION_EVIDENCE
+    assert inv.assessment.final_decision == FinalDecisionState.NO_SIGNIFICANT_MANIPULATION_EVIDENCE
+    assert inv.assessment.final_decision not in (FinalDecisionState.SUPPORTED_MANIPULATION, FinalDecisionState.LIKELY_MANIPULATED)
 
 def test_png_structural_consistency():
     # TEST 1 - Valid PNG structural consistency

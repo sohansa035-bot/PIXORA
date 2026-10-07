@@ -24,10 +24,12 @@ PROV_VERIFIED = _ev("prov_001", EvidenceType.PROVENANCE, EvidenceStatus.VERIFIED
                     reliability=Reliability.HIGH)
 
 def test_missing_exif_not_manipulation_proof():
+    # Clean JPEG with no EXIF concludes NO_SIGNIFICANT_MANIPULATION_EVIDENCE
     ev = [EXIF_ABSENT, PIXEL_CLEAN, PROV_UNAVAILABLE]
     a = evaluate_evidence(ev, build_relationships(ev))
-    assert a.eligibility == DecisionEligibilityState.ABSTAIN
-    assert a.final_decision == FinalDecisionState.INSUFFICIENT_EVIDENCE
+    assert a.eligibility == DecisionEligibilityState.CONCLUSION_MAY_BE_ISSUED
+    assert a.final_decision == FinalDecisionState.NO_SIGNIFICANT_MANIPULATION_EVIDENCE
+    assert a.sufficiency == SufficiencyState.SUFFICIENT
 
 def test_ela_anomaly_not_automatic_manipulation_proof():
     # EXIF present but no corroborating tags + ELA anomaly + Prov Unavailable
@@ -38,12 +40,12 @@ def test_ela_anomaly_not_automatic_manipulation_proof():
     assert a.final_decision == FinalDecisionState.LIKELY_MANIPULATED
 
 def test_scenario_c_missing_exif_plus_ela_anomaly():
-    # Missing EXIF + ELA Anomaly = INSUFFICIENT
+    # Missing EXIF + ELA Anomaly = LIKELY_MANIPULATED (hedged signal without secondary corroboration)
     ev = [EXIF_ABSENT, PIXEL_ANOMALY, PROV_UNAVAILABLE]
     a = evaluate_evidence(ev, build_relationships(ev))
-    assert a.eligibility == DecisionEligibilityState.ABSTAIN
-    assert a.final_decision == FinalDecisionState.INSUFFICIENT_EVIDENCE
-    assert any("metadata and provenance are unavailable" in r for r in a.explanation.split(". "))
+    assert a.eligibility == DecisionEligibilityState.CONCLUSION_MAY_BE_ISSUED
+    assert a.final_decision == FinalDecisionState.LIKELY_MANIPULATED
+    assert "does not definitively prove manipulation" in a.explanation
 
 def test_unavailable_provenance_not_conflict():
     ev = [EXIF_ABSENT, PIXEL_ANOMALY, PROV_UNAVAILABLE]

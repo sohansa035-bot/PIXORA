@@ -23,7 +23,7 @@ def _run(content: bytes) -> Investigation:
 
 
 def test_pipeline_stages_and_shape_for_insufficient_case():
-    content = flat_jpeg()
+    content = noise_png()
     obs, manifest = collect_observations(content)
     assert all(isinstance(o, RawObservation) for o in obs)
 
@@ -38,8 +38,27 @@ def test_pipeline_stages_and_shape_for_insufficient_case():
     assert inv.assessment.eligibility == DecisionEligibilityState.ABSTAIN
     assert inv.assessment.final_decision == FinalDecisionState.INSUFFICIENT_EVIDENCE
     assert inv.assessment.sufficiency == SufficiencyState.INSUFFICIENT
+    assert any("[prov_" in l for l in inv.limitations)
+
+
+def test_pipeline_stages_and_shape_for_clean_jpeg_case():
+    content = flat_jpeg()
+    obs, manifest = collect_observations(content)
+    assert all(isinstance(o, RawObservation) for o in obs)
+
+    inv = _run(content)
+    ids = [e.id for e in inv.evidence]
+    assert any(i.startswith("meta_") for i in ids)
+    assert any(i.startswith("pixel_") for i in ids)
+    assert any(i.startswith("prov_") for i in ids)
+    assert inv.relationships == []
+    assert all(e.relationships == [] for e in inv.evidence)
+    assert inv.assessment.eligibility == DecisionEligibilityState.CONCLUSION_MAY_BE_ISSUED
+    assert inv.assessment.final_decision == FinalDecisionState.NO_SIGNIFICANT_MANIPULATION_EVIDENCE
+    assert inv.assessment.sufficiency == SufficiencyState.SUFFICIENT
     assert any("[pixel_" in l for l in inv.limitations)
     assert any("[prov_" in l for l in inv.limitations)
+    assert "uniform error-level distribution" in inv.assessment.explanation
 
 
 def test_pipeline_populates_relationship_graph_when_justified():
@@ -54,6 +73,7 @@ def test_pipeline_populates_relationship_graph_when_justified():
     assert rel.id in by_id[rel.source_evidence_id].relationships
     assert rel.id in by_id[rel.target_evidence_id].relationships
     assert rel.id in inv.assessment.relationship_basis
+    assert inv.assessment.final_decision == FinalDecisionState.SUPPORTED_MANIPULATION
 
 
 def test_investigation_serializes_all_required_sections():
@@ -70,6 +90,7 @@ def test_rule_no_metadata_is_not_fake():
     inv = _run(flat_jpeg())  # no EXIF, clean ELA
     assert inv.assessment.final_decision not in (
         FinalDecisionState.SUPPORTED_MANIPULATION, FinalDecisionState.LIKELY_MANIPULATED)
+    assert inv.assessment.final_decision == FinalDecisionState.NO_SIGNIFICANT_MANIPULATION_EVIDENCE
 
 
 def test_rule_metadata_present_is_not_authentic():
@@ -95,9 +116,16 @@ def test_rule_unavailable_provenance_is_not_conflict():
 
 
 def test_rule_unknown_is_neither_real_nor_fake():
-    inv = _run(flat_jpeg())
+    inv = _run(noise_png())
     assert inv.assessment.final_decision == FinalDecisionState.INSUFFICIENT_EVIDENCE
     assert inv.assessment.final_decision != FinalDecisionState.NO_SIGNIFICANT_MANIPULATION_EVIDENCE
+
+
+def test_rule_ela_anomaly_alone_is_likely_manipulated():
+    inv = _run(noise_jpeg())  # ELA anomaly, no EXIF, no C2PA
+    assert inv.assessment.final_decision == FinalDecisionState.LIKELY_MANIPULATED
+    assert inv.assessment.eligibility == DecisionEligibilityState.CONCLUSION_MAY_BE_ISSUED
+    assert "does not definitively prove manipulation" in inv.assessment.explanation
 
 
 def test_rule_observation_inference_conclusion_are_separate_fields():

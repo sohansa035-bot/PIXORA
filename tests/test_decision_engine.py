@@ -1,29 +1,35 @@
 import pytest
 from backend.models.evidence import Evidence, EvidenceType, EvidenceStatus, Reliability
 from backend.models.decision import DecisionEligibilityState, FinalDecisionState
+from backend.models.observation import ObservationType
 from backend.engine.decision_maker import evaluate_evidence
 
 def test_scenario_b_insufficient_evidence():
+    # Truly insufficient: non-applicable pixel analysis, absent metadata, unavailable provenance
     ev_list = [
         Evidence(
             id="1", source="meta", evidence_type=EvidenceType.METADATA,
             observation="No EXIF metadata found", reliability=Reliability.HIGH,
-            applicability="Contextual", status=EvidenceStatus.VERIFIED, limitations=""
+            applicability="Contextual", status=EvidenceStatus.VERIFIED, limitations="",
+            observation_type=ObservationType.EXIF_ABSENT
         ),
         Evidence(
             id="2", source="pixel", evidence_type=EvidenceType.PIXEL,
-            observation="Uniform ELA", reliability=Reliability.MEDIUM,
-            applicability="Pixel", status=EvidenceStatus.VERIFIED, limitations=""
+            observation="ELA not applicable to this format", reliability=Reliability.UNKNOWN,
+            applicability="Pixel", status=EvidenceStatus.UNAVAILABLE, limitations="",
+            observation_type=ObservationType.ELA_NOT_APPLICABLE
         ),
         Evidence(
             id="3", source="prov", evidence_type=EvidenceType.PROVENANCE,
             observation="Unavailable", reliability=Reliability.UNKNOWN,
-            applicability="Contextual", status=EvidenceStatus.UNAVAILABLE, limitations=""
+            applicability="Contextual", status=EvidenceStatus.UNAVAILABLE, limitations="",
+            observation_type=ObservationType.PROVENANCE_NOT_CHECKED
         )
     ]
     assessment = evaluate_evidence(ev_list)
     assert assessment.eligibility == DecisionEligibilityState.ABSTAIN
     assert assessment.final_decision == FinalDecisionState.INSUFFICIENT_EVIDENCE
+    assert assessment.sufficiency == SufficiencyState.INSUFFICIENT
 
 def test_scenario_c_conflicting_evidence():
     ev_list = [
@@ -81,12 +87,22 @@ PROV_VERIFIED = _ev("prov_001", EvidenceType.PROVENANCE, EvidenceStatus.VERIFIED
 
 
 def test_insufficient_evidence_abstains_with_explicit_sufficiency():
-    ev = [EXIF_ABSENT, PIXEL_CLEAN, PROV_UNAVAILABLE]
+    # Truly insufficient: failed pixel analysis + absent metadata + unavailable provenance
+    ev = [EXIF_ABSENT, PIXEL_FAILED, PROV_UNAVAILABLE]
     a = evaluate_evidence(ev, build_relationships(ev))
     assert a.eligibility == DecisionEligibilityState.ABSTAIN
     assert a.final_decision == FinalDecisionState.INSUFFICIENT_EVIDENCE
     assert a.sufficiency == SufficiencyState.INSUFFICIENT
     assert a.relationship_basis == []
+
+
+def test_clean_jpeg_without_exif_concludes_no_significant_manipulation():
+    # Clean JPEG without EXIF concludes NO_SIGNIFICANT_MANIPULATION_EVIDENCE
+    ev = [EXIF_ABSENT, PIXEL_CLEAN, PROV_UNAVAILABLE]
+    a = evaluate_evidence(ev, build_relationships(ev))
+    assert a.eligibility == DecisionEligibilityState.CONCLUSION_MAY_BE_ISSUED
+    assert a.final_decision == FinalDecisionState.NO_SIGNIFICANT_MANIPULATION_EVIDENCE
+    assert a.sufficiency == SufficiencyState.SUFFICIENT
 
 
 def test_genuine_conflict_from_graph_requires_manual_review():
